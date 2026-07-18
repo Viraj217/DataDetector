@@ -3,6 +3,7 @@ package com.datadetector.networkstats
 import android.app.AppOpsManager
 import android.app.usage.NetworkStats
 import android.app.usage.NetworkStatsManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
@@ -17,6 +18,7 @@ import android.provider.Settings
 import com.facebook.react.bridge.*
 import java.io.File
 import java.io.FileOutputStream
+import java.util.Calendar
 
 class NetworkStatsModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
 
@@ -148,6 +150,93 @@ class NetworkStatsModule(reactContext: ReactApplicationContext) : ReactContextBa
             promise.resolve(usageArray)
         } catch (e: Exception) {
             promise.reject("PER_APP_USAGE_ERROR", e.message)
+        }
+    }
+
+    @ReactMethod
+    fun getHourlyPerAppUsage(startMs: Double, endMs: Double, networkType: Int, promise: Promise) {
+        try {
+            val networkStatsManager = reactApplicationContext.getSystemService(Context.NETWORK_STATS_SERVICE) as NetworkStatsManager
+            val type = if (networkType == 0) ConnectivityManager.TYPE_MOBILE else ConnectivityManager.TYPE_WIFI
+            
+            val networkStats = networkStatsManager.querySummary(
+                type,
+                null,
+                startMs.toLong(),
+                endMs.toLong()
+            )
+            
+            val pm = reactApplicationContext.packageManager
+            val usageArray = Arguments.createArray()
+            
+            // key: "uid_hour" -> [rx, tx]
+            val hourlyUsage = mutableMapOf<String, LongArray>()
+            
+            val bucket = NetworkStats.Bucket()
+            val calendar = Calendar.getInstance()
+            while (networkStats.hasNextBucket()) {
+                networkStats.getNextBucket(bucket)
+                val uid = bucket.uid
+                val rx = bucket.rxBytes
+                val tx = bucket.txBytes
+                
+                calendar.timeInMillis = bucket.startTimeStamp
+                val hour = calendar.get(Calendar.HOUR_OF_DAY)
+                
+                val key = "${uid}_${hour}"
+                val current = hourlyUsage.getOrPut(key) { LongArray(2) }
+                current[0] += rx
+                current[1] += tx
+            }
+            networkStats.close()
+            
+            for ((key, bytes) in hourlyUsage) {
+                val parts = key.split("_")
+                val uid = parts[0].toInt()
+                val hour = parts[1].toInt()
+                val rx = bytes[0]
+                val tx = bytes[1]
+                
+                if (rx == 0L && tx == 0L) continue
+                
+                val packageName = when (uid) {
+                    NetworkStats.Bucket.UID_TETHERING -> "system.tethering"
+                    NetworkStats.Bucket.UID_REMOVED -> "system.removed"
+                    else -> {
+                        val pkgs = pm.getPackagesForUid(uid)
+                        pkgs?.firstOrNull() ?: "system.uid_$uid"
+                    }
+                }
+                
+                val appUsage = Arguments.createMap().apply {
+                    putInt("uid", uid)
+                    putInt("hour", hour)
+                    putString("packageName", packageName)
+                    putDouble("rxBytes", rx.toDouble())
+                    putDouble("txBytes", tx.toDouble())
+                }
+                usageArray.pushMap(appUsage)
+            }
+            
+            promise.resolve(usageArray)
+        } catch (e: Exception) {
+            promise.reject("HOURLY_USAGE_ERROR", e.message)
+        }
+    }
+
+    @ReactMethod
+    fun broadcastWidgetUpdate(promise: Promise) {
+        try {
+            val intent = Intent("com.datadetector.widget.REFRESH").apply {
+                component = ComponentName(
+                    reactApplicationContext,
+                    "com.datadetector.widget.DataUsageWidget"
+                )
+            }
+            reactApplicationContext.sendBroadcast(intent)
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("WIDGET_REFRESH_ERROR", e.message)
         }
     }
 

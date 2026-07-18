@@ -103,6 +103,12 @@ export const budgetService = {
     const lastAlertedCycle = queries.getSetting('last_alerted_cycle');
     const isNewCycle = lastAlertedCycle !== cycleKey;
 
+    // Load custom thresholds from settings, fallback to defaults (80 and 100)
+    const warningSetting = queries.getSetting('alert_warning_threshold');
+    const criticalSetting = queries.getSetting('alert_critical_threshold');
+    const warningThresh = warningSetting ? parseInt(warningSetting, 10) : 80;
+    const criticalThresh = criticalSetting ? parseInt(criticalSetting, 10) : 100;
+
     let alert80Sent = false;
     let alert100Sent = false;
 
@@ -118,20 +124,20 @@ export const budgetService = {
 
     const gbCap = (status.capBytes / (1024 * 1024 * 1024)).toFixed(1);
 
-    // Check 100% threshold
-    if (status.consumedPercent >= 100 && !alert100Sent) {
+    // Check critical threshold
+    if (status.consumedPercent >= criticalThresh && !alert100Sent) {
       queries.setSetting('alert_100_sent', 'true');
       notificationService.showNotification(
         '⚠️ Data Limit Exceeded',
-        `You have consumed 100% of your ${gbCap} GB monthly budget!`
+        `You have consumed ${status.consumedPercent.toFixed(0)}% of your ${gbCap} GB monthly budget!`
       );
     }
-    // Check 80% threshold
-    else if (status.consumedPercent >= 80 && !alert80Sent) {
+    // Check warning threshold
+    else if (status.consumedPercent >= warningThresh && !alert80Sent) {
       queries.setSetting('alert_80_sent', 'true');
       notificationService.showNotification(
         '⚠️ High Data Warning',
-        `You have used 80% of your ${gbCap} GB monthly data budget.`
+        `You have used ${status.consumedPercent.toFixed(0)}% of your ${gbCap} GB monthly data budget.`
       );
     }
   },

@@ -26,6 +26,10 @@ export interface InstalledApp {
   iconUri: string;
 }
 
+export interface HourlyAppUsage extends AppUsage {
+  hour: number;
+}
+
 export const nativeNetworkStats = {
   checkUsagePermission: async (): Promise<boolean> => {
     return await NetworkStatsModule.checkUsagePermission();
@@ -49,6 +53,23 @@ export const nativeNetworkStats = {
     networkType: NetworkType
   ): Promise<AppUsage[]> => {
     return await NetworkStatsModule.getPerAppUsage(startMs, endMs, networkType);
+  },
+
+  getHourlyPerAppUsage: async (
+    startMs: number,
+    endMs: number,
+    networkType: NetworkType
+  ): Promise<HourlyAppUsage[]> => {
+    return await NetworkStatsModule.getHourlyPerAppUsage(startMs, endMs, networkType);
+  },
+
+  broadcastWidgetUpdate: async (): Promise<boolean> => {
+    try {
+      return await NetworkStatsModule.broadcastWidgetUpdate();
+    } catch (e) {
+      console.error('[nativeNetworkStats] Widget broadcast failed:', e);
+      return false;
+    }
   },
 
   getInstalledApps: async (): Promise<InstalledApp[]> => {

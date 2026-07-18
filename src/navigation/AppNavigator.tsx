@@ -6,6 +6,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Svg, Path, Rect, Circle } from 'react-native-svg';
 import { useTheme } from '../theme/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { haptics } from '../utils/haptics';
 
 import { HomeScreen } from '../screens/HomeScreen';
 import { HistoryScreen } from '../screens/HistoryScreen';
@@ -13,6 +14,7 @@ import { DayDetailScreen } from '../screens/DayDetailScreen';
 import { AppsListScreen } from '../screens/AppsListScreen';
 import { AppDetailScreen } from '../screens/AppDetailScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
+import { AboutScreen } from '../screens/AboutScreen';
 
 import {
   TodayStackParamList,
@@ -165,6 +167,11 @@ const SettingsStackNavigator = () => {
         component={SettingsScreen}
         options={{ title: 'Settings' }}
       />
+      <SettingsStack.Screen
+        name="About"
+        component={AboutScreen}
+        options={{ title: 'About' }}
+      />
     </SettingsStack.Navigator>
   );
 };
@@ -180,6 +187,9 @@ export const AppNavigator: React.FC = () => {
   return (
     <NavigationContainer>
       <Tab.Navigator
+        screenListeners={{
+          tabPress: () => haptics.light(),
+        }}
         screenOptions={({ route }) => ({
           headerShown: false,
           tabBarActiveTintColor: colors.accent,

@@ -11,14 +11,20 @@ import {
   Platform,
   Alert,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { SettingsStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/ThemeContext';
 import { queries } from '../database/queries';
 import { nativeNetworkStats } from '../services/nativeNetworkStats';
 import { budgetService, BudgetStatus } from '../services/budgetService';
 import { formatBytes } from '../utils/formatBytes';
+import { haptics } from '../utils/haptics';
+import { speedMonitor } from '../services/speedMonitor';
 
 export const SettingsScreen: React.FC = () => {
   const { colors, themeMode, setThemeMode } = useTheme();
+  const navigation = useNavigation<NativeStackNavigationProp<SettingsStackParamList>>();
 
   // Settings State
   const [permissionGranted, setPermissionGranted] = useState(false);
@@ -26,6 +32,11 @@ export const SettingsScreen: React.FC = () => {
   const [cycleStartDay, setCycleStartDay] = useState('');
   const [budgetStatus, setBudgetStatus] = useState<BudgetStatus | null>(null);
   const [lastSyncStr, setLastSyncStr] = useState('Never');
+  // Notification settings
+  const [warningThreshold, setWarningThreshold] = useState('80');
+  const [criticalThreshold, setCriticalThreshold] = useState('100');
+  const [dailySummaryEnabled, setDailySummaryEnabled] = useState(false);
+  const [speedMonitorEnabled, setSpeedMonitorEnabled] = useState(false);
 
   // Load current configuration
   const loadSettings = async () => {
@@ -56,6 +67,16 @@ export const SettingsScreen: React.FC = () => {
         const date = new Date(parseInt(syncTime, 10));
         setLastSyncStr(date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
       }
+
+      // 5. Fetch notification settings
+      const warnThresh = queries.getSetting('alert_warning_threshold');
+      setWarningThreshold(warnThresh || '80');
+      const critThresh = queries.getSetting('alert_critical_threshold');
+      setCriticalThreshold(critThresh || '100');
+      const dailySummary = queries.getSetting('daily_summary_enabled');
+      setDailySummaryEnabled(dailySummary === 'true');
+      const speedMon = queries.getSetting('speed_monitor_enabled');
+      setSpeedMonitorEnabled(speedMon === 'true');
     } catch (e) {
       console.error('[SettingsScreen] Failed to load settings:', e);
     }
@@ -88,6 +109,7 @@ export const SettingsScreen: React.FC = () => {
       loadSettings();
       
       Alert.alert('Settings Saved', 'Data budget settings updated successfully.');
+      haptics.success();
     } catch (e) {
       console.error(e);
       Alert.alert('Error', 'Failed to save settings.');
@@ -95,6 +117,7 @@ export const SettingsScreen: React.FC = () => {
   };
 
   const handleOpenSettings = async () => {
+    haptics.medium();
     await nativeNetworkStats.requestUsagePermission();
   };
 
@@ -201,7 +224,7 @@ export const SettingsScreen: React.FC = () => {
                   styles.themeBtn,
                   { borderColor: colors.border, backgroundColor: themeMode === 'dark' ? colors.accent : colors.card },
                 ]}
-                onPress={() => setThemeMode('dark')}
+                onPress={() => { haptics.selection(); setThemeMode('dark'); }}
               >
                 <Text style={[styles.themeBtnText, { color: themeMode === 'dark' ? colors.background : colors.text }]}>
                   Dark
@@ -213,7 +236,7 @@ export const SettingsScreen: React.FC = () => {
                   styles.themeBtn,
                   { borderColor: colors.border, backgroundColor: themeMode === 'light' ? colors.accent : colors.card },
                 ]}
-                onPress={() => setThemeMode('light')}
+                onPress={() => { haptics.selection(); setThemeMode('light'); }}
               >
                 <Text style={[styles.themeBtnText, { color: themeMode === 'light' ? colors.background : colors.text }]}>
                   Light
@@ -225,12 +248,104 @@ export const SettingsScreen: React.FC = () => {
                   styles.themeBtn,
                   { borderColor: colors.border, backgroundColor: themeMode === 'system' ? colors.accent : colors.card },
                 ]}
-                onPress={() => setThemeMode('system')}
+                onPress={() => { haptics.selection(); setThemeMode('system'); }}
               >
                 <Text style={[styles.themeBtnText, { color: themeMode === 'system' ? colors.background : colors.text }]}>
                   System
                 </Text>
               </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Notifications Card */}
+          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.cardTitle, { color: colors.textSecondary }]}>Notifications</Text>
+
+            <View style={styles.row}>
+              <View style={styles.textCol}>
+                <Text style={[styles.rowTitle, { color: colors.text }]}>Daily Usage Summary</Text>
+                <Text style={[styles.rowSub, { color: colors.textMuted }]}>
+                  Get a notification with your daily total around 9 PM.
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={[
+                  styles.toggleBtn,
+                  { backgroundColor: dailySummaryEnabled ? colors.accent : colors.card, borderColor: colors.border },
+                ]}
+                onPress={() => {
+                  haptics.selection();
+                  const newVal = !dailySummaryEnabled;
+                  setDailySummaryEnabled(newVal);
+                  queries.setSetting('daily_summary_enabled', newVal.toString());
+                }}
+              >
+                <Text style={{ color: dailySummaryEnabled ? colors.background : colors.textSecondary, fontWeight: '700', fontSize: 12 }}>
+                  {dailySummaryEnabled ? 'ON' : 'OFF'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={[styles.row, { marginTop: 16, borderTopWidth: 1, borderTopColor: colors.divider, paddingTop: 16 }]}>
+              <View style={styles.textCol}>
+                <Text style={[styles.rowTitle, { color: colors.text }]}>Real-Time Speed Monitor</Text>
+                <Text style={[styles.rowSub, { color: colors.textMuted }]}>
+                  Show live network speed in notification bar.
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={[
+                  styles.toggleBtn,
+                  { backgroundColor: speedMonitorEnabled ? colors.accent : colors.card, borderColor: colors.border },
+                ]}
+                onPress={async () => {
+                  haptics.selection();
+                  const newVal = !speedMonitorEnabled;
+                  setSpeedMonitorEnabled(newVal);
+                  queries.setSetting('speed_monitor_enabled', newVal.toString());
+                  if (newVal) {
+                    await speedMonitor.start();
+                  } else {
+                    await speedMonitor.stop();
+                  }
+                }}
+              >
+                <Text style={{ color: speedMonitorEnabled ? colors.background : colors.textSecondary, fontWeight: '700', fontSize: 12 }}>
+                  {speedMonitorEnabled ? 'ON' : 'OFF'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ height: 16 }} />
+
+            <View style={styles.inputGroup}>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Warning Threshold (%)</Text>
+              <TextInput
+                style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]}
+                keyboardType="numeric"
+                value={warningThreshold}
+                onChangeText={(val) => {
+                  setWarningThreshold(val);
+                  queries.setSetting('alert_warning_threshold', val);
+                }}
+                placeholder="80"
+                placeholderTextColor={colors.textMuted}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Critical Threshold (%)</Text>
+              <TextInput
+                style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]}
+                keyboardType="numeric"
+                value={criticalThreshold}
+                onChangeText={(val) => {
+                  setCriticalThreshold(val);
+                  queries.setSetting('alert_critical_threshold', val);
+                }}
+                placeholder="100"
+                placeholderTextColor={colors.textMuted}
+              />
             </View>
           </View>
 
@@ -258,6 +373,15 @@ export const SettingsScreen: React.FC = () => {
               <Text style={[styles.infoVal, { color: colors.text }]}>1.0.0</Text>
             </View>
           </View>
+
+          {/* About */}
+          <TouchableOpacity
+            style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+            onPress={() => { haptics.light(); navigation.navigate('About'); }}
+          >
+            <Text style={[styles.rowTitle, { color: colors.text, marginBottom: 0 }]}>About DataDetector</Text>
+            <Text style={[styles.infoVal, { color: colors.textMuted }]}>v1.0.0 →</Text>
+          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -390,6 +514,14 @@ const styles = StyleSheet.create({
   infoVal: {
     fontSize: 13,
     fontWeight: '700',
+  },
+  toggleBtn: {
+    borderWidth: 1,
+    borderRadius: 8,
+    width: 60,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 export default SettingsScreen;

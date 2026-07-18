@@ -16,4 +16,5 @@ export type AppsStackParamList = {
 
 export type SettingsStackParamList = {
   SettingsHome: undefined;
+  About: undefined;
 };

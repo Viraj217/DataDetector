@@ -21,6 +21,8 @@ import { SkeletonLoader } from '../components/SkeletonLoader';
 import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { Svg, Path } from 'react-native-svg';
 import { dateUtils } from '../utils/dateUtils';
+import { haptics } from '../utils/haptics';
+import { CategoriesScreen } from './CategoriesScreen';
 
 type AppsListNavigationProp = NativeStackNavigationProp<AppsStackParamList, 'AppsHome'>;
 type SortOption = 'total' | 'mobile' | 'wifi';
@@ -34,6 +36,7 @@ export const AppsListScreen: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState<SortOption>('total');
   const [allApps, setAllApps] = useState<any[]>([]);
+  const [viewMode, setViewMode] = useState<'list' | 'categories'>('list');
 
   const loadData = () => {
     setLoading(true);
@@ -151,7 +154,7 @@ export const AppsListScreen: React.FC = () => {
               styles.sortBtn,
               sortOption === 'total' && { backgroundColor: colors.accent },
             ]}
-            onPress={() => setSortOption('total')}
+            onPress={() => { haptics.selection(); setSortOption('total'); }}
           >
             <Text style={[styles.sortText, { color: sortOption === 'total' ? colors.background : colors.textSecondary }]}>
               Total
@@ -162,7 +165,7 @@ export const AppsListScreen: React.FC = () => {
               styles.sortBtn,
               sortOption === 'mobile' && { backgroundColor: colors.danger },
             ]}
-            onPress={() => setSortOption('mobile')}
+            onPress={() => { haptics.selection(); setSortOption('mobile'); }}
           >
             <Text style={[styles.sortText, { color: sortOption === 'mobile' ? '#FFFFFF' : colors.textSecondary }]}>
               Mobile
@@ -173,7 +176,7 @@ export const AppsListScreen: React.FC = () => {
               styles.sortBtn,
               sortOption === 'wifi' && { backgroundColor: colors.accent },
             ]}
-            onPress={() => setSortOption('wifi')}
+            onPress={() => { haptics.selection(); setSortOption('wifi'); }}
           >
             <Text style={[styles.sortText, { color: sortOption === 'wifi' ? colors.background : colors.textSecondary }]}>
               Wi-Fi
@@ -229,37 +232,67 @@ export const AppsListScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <FlatList
-        data={processedApps}
-        renderItem={({ item, index }) => (
-          <AppUsageRow
-            displayName={item.display_name}
-            packageName={item.package_name}
-            iconUri={item.icon_uri}
-            totalBytes={item.total_bytes}
-            mobileBytes={item.mobile_bytes}
-            wifiBytes={item.wifi_bytes}
-            hotspotBytes={item.hotspot_bytes}
-            index={index}
-            onPress={() => navigation.navigate('AppDetail', { packageName: item.package_name })}
-          />
-        )}
-        keyExtractor={(item) => item.package_name}
-        initialNumToRender={10}
-        maxToRenderPerBatch={10}
-        windowSize={5}
-        removeClippedSubviews={true}
-        ListHeaderComponent={renderHeader}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-              No matching apps found.
-            </Text>
-          </View>
-        }
-      />
+      {/* Segmented Controller Tab Bar */}
+      <View style={[styles.toggleBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <TouchableOpacity
+          style={[
+            styles.toggleTab,
+            viewMode === 'list' && { borderBottomColor: colors.accent },
+          ]}
+          onPress={() => { haptics.selection(); setViewMode('list'); }}
+        >
+          <Text style={[styles.toggleTabText, { color: viewMode === 'list' ? colors.accent : colors.textSecondary }]}>
+            App List
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.toggleTab,
+            viewMode === 'categories' && { borderBottomColor: colors.accent },
+          ]}
+          onPress={() => { haptics.selection(); setViewMode('categories'); }}
+        >
+          <Text style={[styles.toggleTabText, { color: viewMode === 'categories' ? colors.accent : colors.textSecondary }]}>
+            Categories
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {viewMode === 'categories' ? (
+        <CategoriesScreen />
+      ) : (
+        <FlatList
+          data={processedApps}
+          renderItem={({ item, index }) => (
+            <AppUsageRow
+              displayName={item.display_name}
+              packageName={item.package_name}
+              iconUri={item.icon_uri}
+              totalBytes={item.total_bytes}
+              mobileBytes={item.mobile_bytes}
+              wifiBytes={item.wifi_bytes}
+              hotspotBytes={item.hotspot_bytes}
+              index={index}
+              onPress={() => navigation.navigate('AppDetail', { packageName: item.package_name })}
+            />
+          )}
+          keyExtractor={(item) => item.package_name}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          removeClippedSubviews={true}
+          ListHeaderComponent={renderHeader}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                No matching apps found.
+              </Text>
+            </View>
+          }
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -347,5 +380,22 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  toggleBar: {
+    flexDirection: 'row',
+    height: 48,
+    borderBottomWidth: 1,
+    marginBottom: 8,
+  },
+  toggleTab: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  toggleTabText: {
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 });

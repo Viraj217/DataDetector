@@ -22,6 +22,21 @@ export const SCHEMA_STATEMENTS = [
   `CREATE INDEX IF NOT EXISTS idx_daily_usage_date ON daily_usage(date);`,
   `CREATE INDEX IF NOT EXISTS idx_daily_usage_app ON daily_usage(app_package_name);`,
 
+  `CREATE TABLE IF NOT EXISTS hourly_usage (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    date TEXT NOT NULL,              -- 'YYYY-MM-DD'
+    hour INTEGER NOT NULL,           -- 0-23
+    app_package_name TEXT NOT NULL,
+    network_type TEXT NOT NULL,      -- 'mobile' | 'wifi' | 'hotspot'
+    rx_bytes INTEGER NOT NULL DEFAULT 0,
+    tx_bytes INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (app_package_name) REFERENCES apps(package_name) ON DELETE CASCADE,
+    UNIQUE(date, hour, app_package_name, network_type)
+  );`,
+
+  `CREATE INDEX IF NOT EXISTS idx_hourly_usage_date ON hourly_usage(date);`,
+  `CREATE INDEX IF NOT EXISTS idx_hourly_usage_hour ON hourly_usage(date, hour);`,
+
   `CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL

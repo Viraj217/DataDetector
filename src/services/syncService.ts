@@ -2,6 +2,8 @@ import { nativeNetworkStats, NetworkType } from './nativeNetworkStats';
 import { queries } from '../database/queries';
 import { dateUtils } from '../utils/dateUtils';
 import { budgetService } from './budgetService';
+import { notificationService } from './notificationService';
+import { formatBytes } from '../utils/formatBytes';
 
 const WELL_KNOWN_UIDS: Record<string, string> = {
   '1000': 'Android OS (Core Services)',
@@ -42,10 +44,15 @@ export const syncService = {
       // 2. Fetch usage data from native module
       const mobileUsage = await nativeNetworkStats.getPerAppUsage(startMs, endMs, NetworkType.MOBILE);
       const wifiUsage = await nativeNetworkStats.getPerAppUsage(startMs, endMs, NetworkType.WIFI);
+      
+      const mobileHourly = await nativeNetworkStats.getHourlyPerAppUsage(startMs, endMs, NetworkType.MOBILE);
+      const wifiHourly = await nativeNetworkStats.getHourlyPerAppUsage(startMs, endMs, NetworkType.WIFI);
 
       // 3. Aggregate usage in memory
       // key: packageName + '_' + networkType
       const aggregationMap = new Map<string, { packageName: string; networkType: string; rx: number; tx: number }>();
+      // key: packageName + '_' + hour + '_' + networkType
+      const hourlyAggregationMap = new Map<string, { packageName: string; hour: number; networkType: string; rx: number; tx: number }>();
 
       const addUsage = (packageName: string, rawNetworkType: string, rx: number, tx: number) => {
         // Map system.tethering to 'hotspot' network type
@@ -98,6 +105,21 @@ export const syncService = {
         }
       };
 
+      const addHourlyUsage = (packageName: string, hour: number, rawNetworkType: string, rx: number, tx: number) => {
+        const networkType = packageName === 'system.tethering' ? 'hotspot' : rawNetworkType;
+        
+        // App table entry is already verified/upserted in daily aggregation step!
+        
+        const key = `${packageName}_${hour}_${networkType}`;
+        const existing = hourlyAggregationMap.get(key);
+        if (existing) {
+          existing.rx += rx;
+          existing.tx += tx;
+        } else {
+          hourlyAggregationMap.set(key, { packageName, hour, networkType, rx, tx });
+        }
+      };
+
       // Process mobile data
       for (const item of mobileUsage) {
         addUsage(item.packageName, 'mobile', item.rxBytes, item.txBytes);
@@ -106,6 +128,16 @@ export const syncService = {
       // Process wifi data
       for (const item of wifiUsage) {
         addUsage(item.packageName, 'wifi', item.rxBytes, item.txBytes);
+      }
+
+      // Process mobile hourly data
+      for (const item of mobileHourly) {
+        addHourlyUsage(item.packageName, item.hour, 'mobile', item.rxBytes, item.txBytes);
+      }
+
+      // Process wifi hourly data
+      for (const item of wifiHourly) {
+        addHourlyUsage(item.packageName, item.hour, 'wifi', item.rxBytes, item.txBytes);
       }
 
       // 4. Write aggregated records to SQLite
@@ -119,11 +151,42 @@ export const syncService = {
         );
       }
 
+      for (const [_, record] of hourlyAggregationMap) {
+        queries.upsertHourlyUsage(
+          dateStr,
+          record.hour,
+          record.packageName,
+          record.networkType,
+          record.rx,
+          record.tx
+        );
+      }
+
       // Save last sync time in settings
       queries.setSetting('last_sync_timestamp', Date.now().toString());
       
       // Check data budgets and trigger alerts
       budgetService.checkAlertThresholds();
+
+      // Trigger homescreen widget update broadcast
+      await nativeNetworkStats.broadcastWidgetUpdate();
+
+      // Check and send Daily Usage Summary
+      const dailySummaryEnabled = queries.getSetting('daily_summary_enabled') === 'true';
+      const lastSentDate = queries.getSetting('daily_summary_sent_date');
+      const currentHour = new Date().getHours();
+
+      if (dailySummaryEnabled && currentHour >= 21 && lastSentDate !== dateStr) {
+        const todayNetworkUsage = queries.getTodayTotalByNetworkType(dateStr);
+        const totalBytes = todayNetworkUsage.reduce((sum, item) => sum + item.total_bytes, 0);
+        const formatted = formatBytes(totalBytes);
+
+        notificationService.showNotification(
+          'Daily Data Summary 📊',
+          `You consumed ${formatted.full} of data today.`
+        );
+        queries.setSetting('daily_summary_sent_date', dateStr);
+      }
       
       console.log(`[SyncService] Sync completed successfully for ${dateStr}. Saved ${aggregationMap.size} records.`);
     } catch (error) {

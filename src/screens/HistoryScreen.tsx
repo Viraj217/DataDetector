@@ -17,6 +17,7 @@ import { dateUtils } from '../utils/dateUtils';
 import { CalendarHeatmap } from '../components/CalendarHeatmap';
 import { StackedBarChart } from '../components/StackedBarChart';
 import { WeekComparisonChart } from '../components/WeekComparisonChart';
+import { HourlyHeatmapGrid } from '../components/HourlyHeatmapGrid';
 import { SkeletonLoader } from '../components/SkeletonLoader';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
@@ -31,6 +32,7 @@ export const HistoryScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [heatmapData, setHeatmapData] = useState<any[]>([]);
   const [stackedData, setStackedData] = useState<any[]>([]);
+  const [hourlyHeatmapData, setHourlyHeatmapData] = useState<any[]>([]);
   const [weekComparison, setWeekComparison] = useState<{ thisWeek: any[]; lastWeek: any[] }>({
     thisWeek: [],
     lastWeek: [],
@@ -51,6 +53,10 @@ export const HistoryScreen: React.FC = () => {
       // 2. Fetch Stacked Bar data (toggle 7 vs 30 days)
       const stacked = queries.getDailyTotals(historyDays, todayStr);
       setStackedData(stacked);
+
+      // 2b. Fetch Hourly Heatmap data (last 7 days)
+      const hourlyHeatmap = queries.getHourlyHeatmap(7, todayStr);
+      setHourlyHeatmapData(hourlyHeatmap);
 
       // 3. Fetch Week Comparison data
       const thisWeekRange = dateUtils.getThisWeekRange();
@@ -124,6 +130,13 @@ export const HistoryScreen: React.FC = () => {
             currentDateStr={dateUtils.getLocalDateString()}
             onPressDay={handlePressDay}
           />
+        </Animated.View>
+
+        {/* Hourly Heatmap Section */}
+        <Animated.View
+          entering={FadeInDown.delay(150).springify()}
+        >
+          <HourlyHeatmapGrid data={hourlyHeatmapData} />
         </Animated.View>
 
         {/* Dynamic Bar Chart Section with Range Toggle */}

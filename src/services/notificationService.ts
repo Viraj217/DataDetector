@@ -1,10 +1,11 @@
+// @ts-ignore
 import PushNotification from 'react-native-push-notification';
 
 export const notificationService = {
   configure: () => {
     PushNotification.configure({
       // Called when a remote or local notification is opened or received
-      onNotification: function (notification) {
+      onNotification: function (notification: any) {
         console.log('[NotificationService] ON NOTIFICATION:', notification);
       },
       requestPermissions: false,
@@ -21,7 +22,7 @@ export const notificationService = {
         importance: 4, // High importance
         vibrate: true,
       },
-      (created) => console.log(`[NotificationService] CreateChannel returned '${created}'`)
+      (created: boolean) => console.log(`[NotificationService] CreateChannel returned '${created}'`)
     );
   },
 

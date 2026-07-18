@@ -56,13 +56,13 @@ export const queries = {
   // Get app info
   getApp: (packageName: string): AppRecord | null => {
     const result = db.executeSync(`SELECT * FROM apps WHERE package_name = ? LIMIT 1`, [packageName]);
-    return result.rows.length > 0 ? (result.rows[0] as AppRecord) : null;
+    return result.rows.length > 0 ? (result.rows[0] as unknown as AppRecord) : null;
   },
 
   // Get all apps
   getApps: (): AppRecord[] => {
     const result = db.executeSync(`SELECT * FROM apps`);
-    return result.rows as AppRecord[];
+    return result.rows as unknown as AppRecord[];
   },
 
   // Get usage for a specific day split by network type
@@ -74,7 +74,7 @@ export const queries = {
        GROUP BY network_type`,
       [dateStr]
     );
-    return result.rows as { network_type: string; total_bytes: number }[];
+    return result.rows as any[];
   },
 
   // Get top apps for a given day
@@ -88,7 +88,7 @@ export const queries = {
        LIMIT ?`,
       [dateStr, limit]
     );
-    return result.rows as AppUsageDetail[];
+    return result.rows as unknown as AppUsageDetail[];
   },
 
   // Get aggregated top apps for today (summing the network types)
@@ -225,5 +225,102 @@ export const queries = {
        ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
       [key, value]
     );
+  },
+
+  // Upsert hourly usage records
+  upsertHourlyUsage: (
+    date: string,
+    hour: number,
+    app_package_name: string,
+    network_type: string,
+    rx_bytes: number,
+    tx_bytes: number
+  ): void => {
+    db.executeSync(
+      `INSERT INTO hourly_usage (date, hour, app_package_name, network_type, rx_bytes, tx_bytes)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(date, hour, app_package_name, network_type) DO UPDATE SET
+         rx_bytes = excluded.rx_bytes,
+         tx_bytes = excluded.tx_bytes`,
+      [date, hour, app_package_name, network_type, rx_bytes, tx_bytes]
+    );
+  },
+
+  // Get hourly breakdown for a given day (aggregated across all apps)
+  getHourlyBreakdown: (dateStr: string): { hour: number; total_bytes: number }[] => {
+    const result = db.executeSync(
+      `SELECT hour, SUM(rx_bytes + tx_bytes) as total_bytes
+       FROM hourly_usage
+       WHERE date = ?
+       GROUP BY hour
+       ORDER BY hour ASC`,
+      [dateStr]
+    );
+    return result.rows as any[];
+  },
+
+  // Get hourly breakdown aggregated over multiple days (for heatmap grid: 7 days × 24 hours)
+  getHourlyHeatmap: (days: number, currentDateStr: string): { date: string; hour: number; total_bytes: number }[] => {
+    const result = db.executeSync(
+      `SELECT date, hour, SUM(rx_bytes + tx_bytes) as total_bytes
+       FROM hourly_usage
+       WHERE date >= date(?, '-' || ? || ' days') AND date <= ?
+       GROUP BY date, hour
+       ORDER BY date ASC, hour ASC`,
+      [currentDateStr, days - 1, currentDateStr]
+    );
+    return result.rows as any[];
+  },
+
+  // Get usage grouped by app category for a given day
+  getCategoryBreakdown: (dateStr: string): { category: string; total_bytes: number; mobile_bytes: number; wifi_bytes: number; app_count: number }[] => {
+    const result = db.executeSync(
+      `SELECT 
+         COALESCE(a.category, 'other') as category,
+         SUM(du.rx_bytes + du.tx_bytes) as total_bytes,
+         SUM(CASE WHEN du.network_type = 'mobile' THEN du.rx_bytes + du.tx_bytes ELSE 0 END) as mobile_bytes,
+         SUM(CASE WHEN du.network_type = 'wifi' THEN du.rx_bytes + du.tx_bytes ELSE 0 END) as wifi_bytes,
+         COUNT(DISTINCT a.package_name) as app_count
+       FROM daily_usage du
+       LEFT JOIN apps a ON du.app_package_name = a.package_name
+       WHERE du.date = ?
+       GROUP BY COALESCE(a.category, 'other')
+       ORDER BY total_bytes DESC`,
+      [dateStr]
+    );
+    return result.rows as any[];
+  },
+
+  // Get monthly totals for the last N months
+  getMonthlyTotals: (months: number, currentDateStr: string): { month: string; total_bytes: number }[] => {
+    const result = db.executeSync(
+      `SELECT 
+         strftime('%Y-%m', date) as month,
+         SUM(rx_bytes + tx_bytes) as total_bytes
+       FROM daily_usage
+       WHERE date >= date(?, '-' || ? || ' months') AND date <= ?
+       GROUP BY strftime('%Y-%m', date)
+       ORDER BY month ASC`,
+      [currentDateStr, months, currentDateStr]
+    );
+    return result.rows as any[];
+  },
+
+  // Get top app in a category for a given day
+  getTopAppInCategory: (dateStr: string, category: string): { package_name: string; display_name: string; total_bytes: number } | null => {
+    const result = db.executeSync(
+      `SELECT 
+         a.package_name,
+         a.display_name,
+         SUM(du.rx_bytes + du.tx_bytes) as total_bytes
+       FROM daily_usage du
+       LEFT JOIN apps a ON du.app_package_name = a.package_name
+       WHERE du.date = ? AND COALESCE(a.category, 'other') = ?
+       GROUP BY a.package_name
+       ORDER BY total_bytes DESC
+       LIMIT 1`,
+      [dateStr, category]
+    );
+    return result.rows.length > 0 ? (result.rows[0] as any) : null;
   },
 };

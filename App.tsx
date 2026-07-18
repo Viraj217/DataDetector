@@ -10,11 +10,13 @@ import {
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import { PermissionScreen } from './src/screens/PermissionScreen';
+import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { nativeNetworkStats } from './src/services/nativeNetworkStats';
 import { syncService } from './src/services/syncService';
 import { initBackgroundFetch } from './src/services/backgroundSync';
 import { notificationService } from './src/services/notificationService';
+import { queries } from './src/database/queries';
 
 
 function App() {
@@ -31,6 +33,7 @@ function AppContent() {
   const { colors, isDark } = useTheme();
   const [permissionGranted, setPermissionGranted] = useState<boolean | null>(null);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
   const appState = useRef(AppState.currentState);
 
   const checkPermissionAndSync = async (forceSync = false) => {
@@ -60,6 +63,10 @@ function AppContent() {
     // Configure local notifications
     notificationService.configure();
 
+    // Check onboarding status
+    const onboardingDone = queries.getSetting('onboarding_completed') === 'true';
+    setOnboardingCompleted(onboardingDone);
+
     // Initial check
     checkPermissionAndSync();
 
@@ -80,7 +87,7 @@ function AppContent() {
     };
   }, []);
 
-  if (permissionGranted === null || isSyncing) {
+  if (permissionGranted === null || isSyncing || onboardingCompleted === null) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
         <StatusBar
@@ -92,6 +99,24 @@ function AppContent() {
           {isSyncing ? 'Synchronizing usage data...' : 'Verifying permissions...'}
         </Text>
       </View>
+    );
+  }
+
+  // Show onboarding on first launch
+  if (!onboardingCompleted) {
+    return (
+      <>
+        <StatusBar
+          barStyle={isDark ? 'light-content' : 'dark-content'}
+          backgroundColor={colors.background}
+        />
+        <OnboardingScreen
+          onComplete={() => {
+            setOnboardingCompleted(true);
+            checkPermissionAndSync(true);
+          }}
+        />
+      </>
     );
   }
 
