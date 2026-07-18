@@ -111,7 +111,6 @@ export const HistoryScreen: React.FC = () => {
             onRefresh={handleRefresh}
             colors={[colors.accent]}
             tintColor={colors.accent}
-            backgroundColor={colors.background}
           />
         }
       >

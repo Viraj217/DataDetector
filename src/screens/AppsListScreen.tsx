@@ -88,7 +88,7 @@ export const AppsListScreen: React.FC = () => {
       
       // Limit label characters for space
       const label = app.display_name || app.package_name;
-      const shortLabel = label.length > 8 ? label.substring(0, 8) + '..' : label;
+      const shortLabel = label.length > 12 ? label.substring(0, 12) + '..' : label;
 
       let barColor = colors.accent;
       if (sortOption === 'mobile') barColor = colors.danger;
@@ -98,12 +98,14 @@ export const AppsListScreen: React.FC = () => {
         label: shortLabel,
         frontColor: barColor,
       };
-    }).reverse(); // reverse for clean top-down rendering in horizontal chart
+    }); // Render largest on top
   };
 
   const chartData = getChartData();
-  const screenWidth = Dimensions.get('window').width;
-  const chartWidth = screenWidth - 110;
+  
+  // Calculate maxValue adding 20% padding so the largest bar doesn't overflow the value text
+  const maxDataValue = chartData.length > 0 ? Math.max(...chartData.map(d => d.value)) : 0;
+  const chartMaxValue = maxDataValue > 0 ? maxDataValue * 1.2 : 100;
 
   if (loading) {
     return (
@@ -186,28 +188,39 @@ export const AppsListScreen: React.FC = () => {
           style={[styles.chartCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
           entering={ZoomIn.springify()}
         >
-          <Text style={[styles.chartTitle, { color: colors.textSecondary }]}>
+          <Text style={[styles.chartTitle, { color: colors.textSecondary, marginBottom: 16 }]}>
             Top Rankings (MB)
           </Text>
-          <View style={styles.chartWrapper}>
-            <BarChart
-              data={chartData}
-              horizontal
-              barWidth={16}
-              spacing={20}
-              width={chartWidth}
-              height={140}
-              initialSpacing={10}
-              noOfSections={3}
-              xAxisColor={colors.border}
-              yAxisColor="transparent"
-              xAxisThickness={1}
-              yAxisThickness={0}
-              hideRules
-              yAxisLabelWidth={65}
-              yAxisTextStyle={{ color: colors.textSecondary, fontSize: 10, fontWeight: '700' }}
-              xAxisLabelTextStyle={{ color: colors.textMuted, fontSize: 9, fontWeight: '600' }}
-            />
+          <View style={{ paddingRight: 8 }}>
+            {chartData.map((item, index) => {
+              const widthPercentage = chartMaxValue > 0 ? (item.value / chartMaxValue) * 100 : 0;
+              return (
+                <View key={index} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                  <Text 
+                    numberOfLines={1} 
+                    style={{ width: 85, textAlign: 'right', marginRight: 12, fontSize: 11, fontWeight: '600', color: colors.textSecondary }}
+                  >
+                    {item.label}
+                  </Text>
+                  <View style={{ flex: 1, borderLeftWidth: 1, borderLeftColor: colors.border, paddingVertical: 2, paddingLeft: 8, justifyContent: 'center' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <View 
+                        style={{ 
+                          height: 16, 
+                          width: `${widthPercentage}%`, 
+                          backgroundColor: item.frontColor,
+                          borderRadius: 4,
+                          minWidth: 4,
+                        }} 
+                      />
+                      <Text style={{ marginLeft: 8, fontSize: 10, fontWeight: '700', color: colors.textMuted }}>
+                        {item.value >= 1 ? item.value.toFixed(1) : item.value.toFixed(2)} MB
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              );
+            })}
           </View>
         </Animated.View>
       )}
@@ -219,21 +232,23 @@ export const AppsListScreen: React.FC = () => {
       <FlatList
         data={processedApps}
         renderItem={({ item, index }) => (
-          <Animated.View entering={FadeInDown.delay(index * 40).springify()}>
-            <AppUsageRow
-              displayName={item.display_name}
-              packageName={item.package_name}
-              iconUri={item.icon_uri}
-              totalBytes={item.total_bytes}
-              mobileBytes={item.mobile_bytes}
-              wifiBytes={item.wifi_bytes}
-              hotspotBytes={item.hotspot_bytes}
-              index={index}
-              onPress={() => navigation.navigate('AppDetail', { packageName: item.package_name })}
-            />
-          </Animated.View>
+          <AppUsageRow
+            displayName={item.display_name}
+            packageName={item.package_name}
+            iconUri={item.icon_uri}
+            totalBytes={item.total_bytes}
+            mobileBytes={item.mobile_bytes}
+            wifiBytes={item.wifi_bytes}
+            hotspotBytes={item.hotspot_bytes}
+            index={index}
+            onPress={() => navigation.navigate('AppDetail', { packageName: item.package_name })}
+          />
         )}
         keyExtractor={(item) => item.package_name}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        removeClippedSubviews={true}
         ListHeaderComponent={renderHeader}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}

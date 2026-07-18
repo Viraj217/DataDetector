@@ -5,6 +5,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Svg, Path, Rect, Circle } from 'react-native-svg';
 import { useTheme } from '../theme/ThemeContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HomeScreen } from '../screens/HomeScreen';
 import { HistoryScreen } from '../screens/HistoryScreen';
@@ -170,6 +171,11 @@ const SettingsStackNavigator = () => {
 
 export const AppNavigator: React.FC = () => {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+
+  // Dynamically compute the bottom padding and tab bar height to prevent overlapping with system controls (gestures / back buttons)
+  const bottomPadding = insets.bottom > 0 ? insets.bottom + 8 : 16;
+  const tabBarHeight = 56 + bottomPadding;
 
   return (
     <NavigationContainer>
@@ -183,8 +189,8 @@ export const AppNavigator: React.FC = () => {
             borderTopColor: colors.border,
             borderTopWidth: 1,
             elevation: 4,
-            height: 60,
-            paddingBottom: 8,
+            height: tabBarHeight,
+            paddingBottom: bottomPadding,
             paddingTop: 8,
           },
           tabBarLabelStyle: {

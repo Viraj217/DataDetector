@@ -3,6 +3,16 @@ import { queries } from '../database/queries';
 import { dateUtils } from '../utils/dateUtils';
 import { budgetService } from './budgetService';
 
+const WELL_KNOWN_UIDS: Record<string, string> = {
+  '1000': 'Android OS (Core Services)',
+  '1001': 'Phone & Cellular Services',
+  '1002': 'Bluetooth Services',
+  '1013': 'Media & Audio Server',
+  '1027': 'NFC Services',
+  '1073': 'System Webview Core',
+  '2000': 'ADB Shell / System Access',
+};
+
 export const syncService = {
   sync: async (targetDate: Date = new Date()): Promise<void> => {
     try {
@@ -44,14 +54,24 @@ export const syncService = {
         // Ensure every package we encounter has an entry in the apps table
         // This prevents FK constraint violations for uninstalled apps or unknown system UIDs
         const existingApp = queries.getApp(packageName);
-        if (!existingApp) {
-          let displayName = packageName;
-          let category = 'other';
-          
+        let shouldUpsert = !existingApp;
+        let displayName = existingApp?.display_name || packageName;
+        let category = existingApp?.category || 'other';
+        
+        if (!existingApp || packageName.startsWith('system.uid_')) {
           if (packageName.startsWith('system.uid_')) {
             const uidStr = packageName.split('_')[1];
-            displayName = `System Services (UID ${uidStr})`;
-            category = 'system';
+            const uid = parseInt(uidStr, 10);
+            if (uid >= 10000) {
+              displayName = `Uninstalled App (UID ${uidStr})`;
+              category = 'other';
+            } else {
+              displayName = WELL_KNOWN_UIDS[uidStr] || `System Services (UID ${uidStr})`;
+              category = 'system';
+            }
+            if (!existingApp || existingApp.display_name !== displayName) {
+              shouldUpsert = true;
+            }
           } else if (packageName === 'system.tethering') {
             displayName = 'Tethering & Hotspot';
             category = 'system';
@@ -62,7 +82,9 @@ export const syncService = {
             // Unknown package (possibly uninstalled), use package name as display
             displayName = packageName.split('.').pop() || packageName;
           }
-          
+        }
+        
+        if (shouldUpsert) {
           queries.upsertApp(packageName, displayName, '', category);
         }
 

@@ -240,22 +240,24 @@ export const HomeScreen: React.FC = () => {
       <FlatList
         data={topApps}
         renderItem={({ item, index }) => (
-          <Animated.View entering={FadeInDown.delay(index * 50).springify()}>
-            <AppUsageRow
-              displayName={item.display_name}
-              packageName={item.package_name}
-              iconUri={item.icon_uri}
-              totalBytes={item.total_bytes}
-              mobileBytes={item.mobile_bytes}
-              wifiBytes={item.wifi_bytes}
-              hotspotBytes={item.hotspot_bytes}
-              sparklineData={item.sparkline}
-              index={index}
-              onPress={() => navigation.navigate('AppDetail', { packageName: item.package_name })}
-            />
-          </Animated.View>
+          <AppUsageRow
+            displayName={item.display_name}
+            packageName={item.package_name}
+            iconUri={item.icon_uri}
+            totalBytes={item.total_bytes}
+            mobileBytes={item.mobile_bytes}
+            wifiBytes={item.wifi_bytes}
+            hotspotBytes={item.hotspot_bytes}
+            sparklineData={item.sparkline}
+            index={index}
+            onPress={() => navigation.navigate('AppDetail', { packageName: item.package_name })}
+          />
         )}
         keyExtractor={(item) => item.package_name}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        removeClippedSubviews={true}
         ListHeaderComponent={renderHeader}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
@@ -265,7 +267,6 @@ export const HomeScreen: React.FC = () => {
             onRefresh={handleRefresh}
             colors={[colors.accent]}
             tintColor={colors.accent}
-            backgroundColor={colors.background}
           />
         }
         ListEmptyComponent={

@@ -45,6 +45,7 @@ export const NetworkSplitRing: React.FC<NetworkSplitRingProps> = ({
           donut
           radius={radius}
           innerRadius={innerRadius}
+          innerCircleColor={colors.surface}
           focusOnPress
           toggleFocusOnPress={false}
           centerLabelComponent={() => (
