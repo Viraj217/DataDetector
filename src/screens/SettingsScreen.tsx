@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  PermissionsAndroid,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -301,6 +302,25 @@ export const SettingsScreen: React.FC = () => {
                 onPress={async () => {
                   haptics.selection();
                   const newVal = !speedMonitorEnabled;
+                  
+                  if (newVal && Platform.OS === 'android' && Platform.Version >= 33) {
+                    try {
+                      const granted = await PermissionsAndroid.request(
+                        PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
+                      );
+                      if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+                        Alert.alert(
+                          'Permission Required',
+                          'Notification permission is required to display live network speed.'
+                        );
+                        return;
+                      }
+                    } catch (err) {
+                      console.warn(err);
+                      return;
+                    }
+                  }
+
                   setSpeedMonitorEnabled(newVal);
                   queries.setSetting('speed_monitor_enabled', newVal.toString());
                   if (newVal) {
