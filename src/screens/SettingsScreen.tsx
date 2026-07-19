@@ -30,6 +30,7 @@ export const SettingsScreen: React.FC = () => {
   // Settings State
   const [permissionGranted, setPermissionGranted] = useState(false);
   const [monthlyCapGb, setMonthlyCapGb] = useState('');
+  const [wifiCapGb, setWifiCapGb] = useState('');
   const [cycleStartDay, setCycleStartDay] = useState('');
   const [budgetStatus, setBudgetStatus] = useState<BudgetStatus | null>(null);
   const [lastSyncStr, setLastSyncStr] = useState('Never');
@@ -53,6 +54,14 @@ export const SettingsScreen: React.FC = () => {
         setMonthlyCapGb((bytes / (1024 * 1024 * 1024)).toString());
       } else {
         setMonthlyCapGb('10'); // Default 10 GB
+      }
+
+      const wifiCapSetting = queries.getSetting('wifi_cap_bytes');
+      if (wifiCapSetting) {
+        const bytes = parseInt(wifiCapSetting, 10);
+        setWifiCapGb((bytes / (1024 * 1024 * 1024)).toString());
+      } else {
+        setWifiCapGb('50'); // Default 50 GB
       }
 
       const cycleDaySetting = queries.getSetting('billing_cycle_start_day');
@@ -89,10 +98,11 @@ export const SettingsScreen: React.FC = () => {
 
   const handleSaveBudget = () => {
     const gb = parseFloat(monthlyCapGb);
+    const wgb = parseFloat(wifiCapGb);
     const day = parseInt(cycleStartDay, 10);
 
-    if (isNaN(gb) || gb < 0) {
-      Alert.alert('Invalid Input', 'Please enter a valid monthly data limit in GB.');
+    if (isNaN(gb) || gb < 0 || isNaN(wgb) || wgb < 0) {
+      Alert.alert('Invalid Input', 'Please enter valid data limits in GB.');
       return;
     }
 
@@ -103,7 +113,9 @@ export const SettingsScreen: React.FC = () => {
 
     try {
       const bytes = Math.round(gb * 1024 * 1024 * 1024);
+      const wBytes = Math.round(wgb * 1024 * 1024 * 1024);
       queries.setSetting('monthly_cap_bytes', bytes.toString());
+      queries.setSetting('wifi_cap_bytes', wBytes.toString());
       queries.setSetting('billing_cycle_start_day', day.toString());
       
       // Re-load and update
@@ -162,16 +174,28 @@ export const SettingsScreen: React.FC = () => {
 
           {/* Budget Config Card */}
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.cardTitle, { color: colors.textSecondary }]}>Monthly Data Budget</Text>
+            <Text style={[styles.cardTitle, { color: colors.textSecondary }]}>Data Budgets</Text>
             
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Monthly Cap (GB)</Text>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Mobile Data Cap (GB)</Text>
               <TextInput
                 style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]}
                 keyboardType="numeric"
                 value={monthlyCapGb}
                 onChangeText={setMonthlyCapGb}
                 placeholder="e.g. 15"
+                placeholderTextColor={colors.textMuted}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Wi-Fi Cap (GB)</Text>
+              <TextInput
+                style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]}
+                keyboardType="numeric"
+                value={wifiCapGb}
+                onChangeText={setWifiCapGb}
+                placeholder="e.g. 50"
                 placeholderTextColor={colors.textMuted}
               />
             </View>

@@ -32,27 +32,20 @@ export const StackedBarChart: React.FC<StackedBarChartProps> = ({ data }) => {
   const chartWidth = screenWidth - 72; // Padding margins
 
   // Find max value for scaling y-axis labels
-  let maxDaySum = 0;
   const stackData = data.map((item) => {
     const mobileMb = item.mobile / (1024 * 1024);
     const wifiMb = item.wifi / (1024 * 1024);
-    const hotspotMb = item.hotspot / (1024 * 1024);
-    const daySum = mobileMb + wifiMb + hotspotMb;
-    
-    if (daySum > maxDaySum) {
-      maxDaySum = daySum;
-    }
 
-    // Short date formatting, e.g. "16 Jul"
+    // Format X-axis to Mon, Tue, etc.
     const parts = item.date.split('-');
     const dateObj = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-    const label = dateObj.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+    const label = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
 
+    // Mockup has Mobile (Purple) on bottom, Wi-Fi (Blue) on top
     return {
       stacks: [
-        { value: wifiMb, color: colors.accent },
-        { value: mobileMb, color: colors.danger },
-        { value: hotspotMb, color: colors.warning },
+        { value: mobileMb, color: '#8B5CF6', marginBottom: 2 }, // Mobile
+        { value: wifiMb, color: '#2563EB' }, // Wi-Fi
       ],
       label: label,
     };
@@ -60,44 +53,77 @@ export const StackedBarChart: React.FC<StackedBarChartProps> = ({ data }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.title, { color: colors.textSecondary }]}>
-        Daily Usage Stacked (MB)
-      </Text>
-      
       <View style={styles.chartWrapper}>
         <BarChart
           stackData={stackData}
           width={chartWidth}
           height={180}
-          barWidth={14}
-          spacing={24}
+          barWidth={24}
+          spacing={screenWidth > 400 ? 32 : 24}
           noOfSections={4}
-          barBorderRadius={4}
+          barBorderRadius={12}
           initialSpacing={16}
-          xAxisColor={colors.border}
+          xAxisColor="transparent"
           yAxisColor="transparent"
-          xAxisThickness={1}
+          xAxisThickness={0}
           yAxisThickness={0}
-          yAxisLabelWidth={40}
-          yAxisTextStyle={{ color: colors.textMuted, fontSize: 10, fontWeight: '600' }}
-          xAxisLabelTextStyle={{ color: colors.textMuted, fontSize: 10, fontWeight: '600', textAlign: 'center' }}
+          yAxisLabelWidth={0}
+          hideYAxisText
+          xAxisLabelTextStyle={{ color: '#64748B', fontSize: 10, fontWeight: '600', textAlign: 'center' }}
           hideRules
+          pointerConfig={{
+            pointerStripHeight: 180,
+            pointerStripColor: '#E2E8F0',
+            pointerStripWidth: 2,
+            pointerColor: '#8B5CF6',
+            radius: 4,
+            pointerLabelWidth: 90,
+            pointerLabelHeight: 60,
+            activatePointersOnLongPress: false,
+            autoAdjustPointerLabelPosition: true,
+            pointerLabelComponent: items => {
+              if (!items || !items[0]) return null;
+              
+              // For StackedBarChart, items[0] usually contains the stacked data or total value.
+              // We'll calculate the sum of the stacks to show the total for the day.
+              let total = 0;
+              if (items[0].stacks) {
+                items[0].stacks.forEach(stack => { total += stack.value; });
+              } else if (items[0].value) {
+                total = items[0].value;
+              }
+
+              return (
+                <View
+                  style={{
+                    backgroundColor: '#1E293B',
+                    padding: 8,
+                    borderRadius: 8,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}>
+                  <Text style={{color: '#F8FAFC', fontSize: 10, fontWeight: '700', marginBottom: 4}}>
+                    {total.toFixed(1)} MB
+                  </Text>
+                  <Text style={{color: '#94A3B8', fontSize: 9}}>
+                    Total Usage
+                  </Text>
+                </View>
+              );
+            },
+          }}
         />
       </View>
 
       {/* Custom Legend */}
       <View style={styles.legendContainer}>
         <View style={styles.legendItem}>
-          <View style={[styles.dot, { backgroundColor: colors.accent }]} />
-          <Text style={[styles.legendLabel, { color: colors.textSecondary }]}>Wi-Fi</Text>
+          <View style={[styles.dot, { backgroundColor: '#8B5CF6' }]} />
+          <Text style={styles.legendLabel}>Mobile</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.dot, { backgroundColor: colors.danger }]} />
-          <Text style={[styles.legendLabel, { color: colors.textSecondary }]}>Mobile</Text>
-        </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.dot, { backgroundColor: colors.warning }]} />
-          <Text style={[styles.legendLabel, { color: colors.textSecondary }]}>Hotspot</Text>
+          <View style={[styles.dot, { backgroundColor: '#2563EB' }]} />
+          <Text style={styles.legendLabel}>Wi-Fi</Text>
         </View>
       </View>
     </View>
@@ -108,17 +134,11 @@ const styles = StyleSheet.create({
   container: {
     paddingVertical: 10,
   },
-  title: {
-    fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 16,
-  },
   chartWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: -10,
+    marginLeft: 0,
+    marginTop: 10,
   },
   placeholderContainer: {
     height: 180,
@@ -148,5 +168,6 @@ const styles = StyleSheet.create({
   legendLabel: {
     fontSize: 11,
     fontWeight: '700',
+    color: '#0F172A',
   },
 });

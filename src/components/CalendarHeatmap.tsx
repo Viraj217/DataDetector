@@ -19,7 +19,7 @@ export const CalendarHeatmap: React.FC<CalendarHeatmapProps> = ({
   currentDateStr,
   onPressDay,
 }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
 
   // Create a map of date -> total_bytes for fast lookup
   const dataMap = new Map<string, number>();
@@ -36,13 +36,13 @@ export const CalendarHeatmap: React.FC<CalendarHeatmapProps> = ({
   // so the first row is always Sunday
   const todayDayOfWeek = baseDate.getDay();
   // We want the total grid size to be 13 columns * 7 days = 91 cells
-  // We align the start so the final cell corresponds to today
+  // We align the start so the final cell corresponds to Saturday of the current week
   const totalCells = 91;
-  const startDateOffset = totalCells - 1 - todayDayOfWeek;
+  const daysUntilSaturday = 6 - todayDayOfWeek;
 
   for (let i = totalCells - 1; i >= 0; i--) {
     const d = new Date(baseDate);
-    d.setDate(baseDate.getDate() - i + todayDayOfWeek);
+    d.setDate(baseDate.getDate() - i + daysUntilSaturday);
     
     // Format YYYY-MM-DD
     const offset = d.getTimezoneOffset();
@@ -66,36 +66,29 @@ export const CalendarHeatmap: React.FC<CalendarHeatmapProps> = ({
     columns.push(col);
   }
 
-  // Easing function for color mapping
+  // Easing function for color mapping (matching mockup purple scale)
   const getCellColor = (bytes: number) => {
-    if (bytes === 0) return colors.card;
+    if (bytes === 0) return '#F3F4F6'; // very light grey/purple
     const mb = bytes / (1024 * 1024);
-    if (mb < 50) return 'rgba(0, 229, 160, 0.15)';   // Tier 1: < 50 MB (light teal)
-    if (mb < 250) return 'rgba(0, 229, 160, 0.4)';   // Tier 2: < 250 MB (medium teal)
-    if (mb < 1000) return colors.accent;             // Tier 3: < 1 GB (vibrant teal)
-    if (mb < 3000) return colors.warning;            // Tier 4: < 3 GB (amber alert)
-    return colors.danger;                            // Tier 5: > 3 GB (coral spike)
+    if (mb < 50) return '#EDE9FE';
+    if (mb < 250) return '#C4B5FD';
+    if (mb < 1000) return '#8B5CF6';
+    return '#6D28D9'; // max intensity
   };
+
+  const totalBytes = data.reduce((sum, item) => sum + item.total_bytes, 0);
 
   // Day labels
   const rowLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.title, { color: colors.textSecondary }]}>
-        Activity Intensity (Last 90 Days)
-      </Text>
+      <View style={styles.headerRow}>
+        <Text style={[styles.title, { color: '#0F172A' }]}>Activity Intensity</Text>
+        <Text style={{ fontSize: 10, color: '#64748B', fontWeight: '600' }}>Last 90 Days</Text>
+      </View>
       
       <View style={styles.heatmapRow}>
-        {/* Row Labels (S, M, W, F...) */}
-        <View style={styles.labelsColumn}>
-          {rowLabels.map((label, index) => (
-            <Text key={index} style={[styles.rowLabel, { color: colors.textMuted }]}>
-              {label}
-            </Text>
-          ))}
-        </View>
-
         {/* Heatmap Grid */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.gridScroll}>
           <View style={styles.gridContainer}>
@@ -103,18 +96,13 @@ export const CalendarHeatmap: React.FC<CalendarHeatmapProps> = ({
               <View key={cIdx} style={styles.gridColumn}>
                 {col.map((cell, rIdx) => {
                   const cellColor = getCellColor(cell.bytes);
-                  const isToday = cell.date === currentDateStr;
                   
                   return (
                     <TouchableOpacity
                       key={cell.date}
                       style={[
                         styles.cell,
-                        {
-                          backgroundColor: cellColor,
-                          borderColor: isToday ? '#FFFFFF' : 'transparent',
-                          borderWidth: isToday ? 1 : 0,
-                        },
+                        { backgroundColor: cellColor }
                       ]}
                       onPress={() => onPressDay(cell.date)}
                       activeOpacity={0.7}
@@ -127,16 +115,17 @@ export const CalendarHeatmap: React.FC<CalendarHeatmapProps> = ({
         </ScrollView>
       </View>
 
-      {/* Color Scale Legend */}
-      <View style={styles.legendRow}>
-        <Text style={[styles.legendText, { color: colors.textMuted }]}>Less</Text>
-        <View style={[styles.legendBox, { backgroundColor: colors.card }]} />
-        <View style={[styles.legendBox, { backgroundColor: 'rgba(0, 229, 160, 0.15)' }]} />
-        <View style={[styles.legendBox, { backgroundColor: 'rgba(0, 229, 160, 0.4)' }]} />
-        <View style={[styles.legendBox, { backgroundColor: colors.accent }]} />
-        <View style={[styles.legendBox, { backgroundColor: colors.warning }]} />
-        <View style={[styles.legendBox, { backgroundColor: colors.danger }]} />
-        <Text style={[styles.legendText, { color: colors.textMuted }]}>More</Text>
+      {/* Footer / Legend */}
+      <View style={styles.footerRow}>
+        <View style={styles.legendRow}>
+          <Text style={[styles.legendText, { color: '#64748B' }]}>Less</Text>
+          <View style={[styles.legendBox, { backgroundColor: '#EDE9FE' }]} />
+          <View style={[styles.legendBox, { backgroundColor: '#C4B5FD' }]} />
+          <View style={[styles.legendBox, { backgroundColor: '#8B5CF6' }]} />
+          <View style={[styles.legendBox, { backgroundColor: '#6D28D9' }]} />
+          <Text style={[styles.legendText, { color: '#64748B' }]}>More</Text>
+        </View>
+        <Text style={styles.totalText}>{formatBytes(totalBytes).full} Total</Text>
       </View>
     </View>
   );
@@ -146,27 +135,19 @@ const styles = StyleSheet.create({
   container: {
     paddingVertical: 8,
   },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
   title: {
-    fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 10,
+    fontSize: 16,
+    fontWeight: '800',
   },
   heatmapRow: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  labelsColumn: {
-    justifyContent: 'space-between',
-    height: 104, // 7 * 12px cell + 6 * 3px gap
-    marginRight: 8,
-    paddingVertical: 2,
-  },
-  rowLabel: {
-    fontSize: 9,
-    fontWeight: '600',
-    textAlign: 'center',
   },
   gridScroll: {
     paddingRight: 10,
@@ -176,22 +157,26 @@ const styles = StyleSheet.create({
   },
   gridColumn: {
     flexDirection: 'column',
-    marginHorizontal: 1.5,
+    marginHorizontal: 3,
   },
   cell: {
-    width: 12,
-    height: 12,
-    borderRadius: 2,
-    marginVertical: 1.5,
+    width: 14,
+    height: 14,
+    borderRadius: 3,
+    marginVertical: 3,
+  },
+  footerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 20,
   },
   legendRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    marginTop: 12,
   },
   legendText: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '600',
     marginHorizontal: 4,
   },
@@ -200,5 +185,10 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 2,
     marginHorizontal: 2,
+  },
+  totalText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#8B5CF6',
   },
 });

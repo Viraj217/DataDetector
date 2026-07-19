@@ -187,12 +187,12 @@ export const queries = {
     };
   },
 
-  // Get total consumption for a date range (for monthly budget tracking)
-  getMonthlyTotal: (startDateStr: string, endDateStr: string): number => {
+  // Get total data consumption for a date range (mobile + hotspot only)
+  getMonthlyDataTotal: (startDateStr: string, endDateStr: string): number => {
     const result = db.executeSync(
       `SELECT SUM(rx_bytes + tx_bytes) as total
        FROM daily_usage
-       WHERE date >= ? AND date <= ?`,
+       WHERE date >= ? AND date <= ? AND network_type IN ('mobile', 'hotspot')`,
       [startDateStr, endDateStr]
     );
     return result.rows.length > 0 && result.rows[0].total ? (result.rows[0].total as number) : 0;

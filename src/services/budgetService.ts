@@ -52,7 +52,7 @@ export const budgetService = {
     const endStr = dateUtils.getLocalDateString(end);
 
     // 3. Query DB for total bytes in this range
-    const consumedBytes = queries.getMonthlyTotal(startStr, endStr);
+    const consumedBytes = queries.getMonthlyDataTotal(startStr, endStr);
     const consumedPercent = capBytes > 0 ? (consumedBytes / capBytes) * 100 : 0;
 
     // 4. Compute days elapsed vs remaining

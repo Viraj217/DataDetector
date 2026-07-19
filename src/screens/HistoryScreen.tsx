@@ -17,7 +17,7 @@ import { dateUtils } from '../utils/dateUtils';
 import { CalendarHeatmap } from '../components/CalendarHeatmap';
 import { StackedBarChart } from '../components/StackedBarChart';
 import { WeekComparisonChart } from '../components/WeekComparisonChart';
-import { HourlyHeatmapGrid } from '../components/HourlyHeatmapGrid';
+import { PeakUsageChart } from '../components/PeakUsageChart';
 import { SkeletonLoader } from '../components/SkeletonLoader';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
@@ -107,7 +107,7 @@ export const HistoryScreen: React.FC = () => {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: '#F8F9FB' }]}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -120,9 +120,30 @@ export const HistoryScreen: React.FC = () => {
           />
         }
       >
+        {/* Screen Header */}
+        <View style={styles.headerContainer}>
+          <View style={styles.headerTop}>
+            <View style={{flexDirection: 'row', alignItems: 'center'}}>
+               <Text style={styles.headerLogoIcon}>📊</Text>
+               <Text style={styles.headerLogoText}>DataDetector</Text>
+            </View>
+            <TouchableOpacity onPress={handleRefresh} style={styles.refreshBtn}>
+              <Text style={{fontSize: 18}}>🔄</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.pullRefreshWrapper}>
+            <Text style={{fontSize: 10, color: '#9CA3AF', letterSpacing: 1}}>{'↓'}</Text>
+            <Text style={{fontSize: 10, color: '#9CA3AF', letterSpacing: 1, fontWeight: '700', marginLeft: 4}}>PULL TO REFRESH</Text>
+          </View>
+
+          <Text style={[styles.screenTitle, { color: '#0F172A' }]}>Usage History</Text>
+          <Text style={[styles.screenSubtitle, { color: '#475569' }]}>Analyzing your data footprint across networks.</Text>
+        </View>
+
         {/* Heatmap Section */}
         <Animated.View 
-          style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          style={styles.sectionCard}
           entering={FadeInDown.delay(100).springify()}
         >
           <CalendarHeatmap
@@ -132,32 +153,33 @@ export const HistoryScreen: React.FC = () => {
           />
         </Animated.View>
 
-        {/* Hourly Heatmap Section */}
+        {/* Peak Usage Section */}
         <Animated.View
+          style={styles.sectionCard}
           entering={FadeInDown.delay(150).springify()}
         >
-          <HourlyHeatmapGrid data={hourlyHeatmapData} />
+          <PeakUsageChart data={hourlyHeatmapData} />
         </Animated.View>
 
-        {/* Dynamic Bar Chart Section with Range Toggle */}
+        {/* Usage Trend Section */}
         <Animated.View 
-          style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          style={styles.sectionCard}
           entering={FadeInDown.delay(200).springify()}
         >
           <View style={styles.chartHeader}>
-            <Text style={[styles.chartHeaderTitle, { color: colors.textSecondary }]}>Usage Trend</Text>
-            <View style={[styles.toggleContainer, { backgroundColor: colors.card }]}>
+            <Text style={[styles.cardTitle, { color: '#0F172A' }]}>Usage Trend</Text>
+            <View style={styles.toggleContainer}>
               <TouchableOpacity
                 style={[
                   styles.toggleBtn,
-                  historyDays === 7 && { backgroundColor: colors.accent },
+                  historyDays === 7 && { backgroundColor: '#EDE9FE' },
                 ]}
                 onPress={() => setHistoryDays(7)}
               >
                 <Text
                   style={[
                     styles.toggleText,
-                    { color: historyDays === 7 ? colors.background : colors.textSecondary },
+                    { color: historyDays === 7 ? '#6D28D9' : '#64748B' },
                   ]}
                 >
                   7 Days
@@ -166,14 +188,14 @@ export const HistoryScreen: React.FC = () => {
               <TouchableOpacity
                 style={[
                   styles.toggleBtn,
-                  historyDays === 30 && { backgroundColor: colors.accent },
+                  historyDays === 30 && { backgroundColor: '#EDE9FE' },
                 ]}
                 onPress={() => setHistoryDays(30)}
               >
                 <Text
                   style={[
                     styles.toggleText,
-                    { color: historyDays === 30 ? colors.background : colors.textSecondary },
+                    { color: historyDays === 30 ? '#6D28D9' : '#64748B' },
                   ]}
                 >
                   30 Days
@@ -187,9 +209,10 @@ export const HistoryScreen: React.FC = () => {
 
         {/* Week Comparison Section */}
         <Animated.View 
-          style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          style={styles.sectionCard}
           entering={FadeInDown.delay(300).springify()}
         >
+          <Text style={[styles.cardTitle, { color: '#0F172A', marginBottom: 16 }]}>Week Comparison</Text>
           <WeekComparisonChart
             thisWeek={weekComparison.thisWeek}
             lastWeek={weekComparison.lastWeek}
@@ -213,32 +236,75 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   sectionCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 16,
-    marginBottom: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 24,
+    shadowColor: '#9CA3AF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  headerContainer: {
+    marginBottom: 24,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  headerLogoIcon: {
+    fontSize: 20,
+    marginRight: 6,
+  },
+  headerLogoText: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#2563EB',
+    letterSpacing: -0.5,
+  },
+  refreshBtn: {
+    padding: 4,
+  },
+  pullRefreshWrapper: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  screenTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  screenSubtitle: {
+    fontSize: 14,
+    fontWeight: '400',
+    lineHeight: 20,
+    paddingRight: 40,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '800',
   },
   chartHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  chartHeaderTitle: {
-    fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    marginBottom: 24,
   },
   toggleContainer: {
     flexDirection: 'row',
-    borderRadius: 8,
-    padding: 2,
+    borderRadius: 16,
+    padding: 4,
+    backgroundColor: '#F1F5F9',
   },
   toggleBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
   },
   toggleText: {
     fontSize: 11,

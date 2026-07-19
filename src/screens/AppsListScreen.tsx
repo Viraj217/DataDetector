@@ -18,6 +18,7 @@ import { queries } from '../database/queries';
 import { formatBytes } from '../utils/formatBytes';
 import { AppUsageRow } from '../components/AppUsageRow';
 import { SkeletonLoader } from '../components/SkeletonLoader';
+import { GlassCard } from '../components/GlassCard';
 import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { Svg, Path } from 'react-native-svg';
 import { dateUtils } from '../utils/dateUtils';
@@ -127,7 +128,7 @@ export const AppsListScreen: React.FC = () => {
   const renderHeader = () => (
     <View style={styles.headerContainer}>
       {/* Search Input */}
-      <View style={[styles.searchBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <GlassCard style={styles.searchBox}>
         <Svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={styles.searchIcon}>
           <Path
             d="M21 21L15 15M17 10C17 13.866 13.866 17 10 17C6.13401 17 3 13.866 3 10C3 6.13401 6.13401 3 10 3C13.866 3 17 6.13401 17 10Z"
@@ -137,13 +138,13 @@ export const AppsListScreen: React.FC = () => {
           />
         </Svg>
         <TextInput
-          placeholder="Search installed apps..."
+          placeholder="Search apps..."
           placeholderTextColor={colors.textMuted}
           style={[styles.searchInput, { color: colors.text }]}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
-      </View>
+      </GlassCard>
 
       {/* Sorting bar */}
       <View style={styles.sortBar}>
@@ -187,10 +188,8 @@ export const AppsListScreen: React.FC = () => {
 
       {/* Horizontal rankings bar chart */}
       {chartData.length > 0 && (
-        <Animated.View 
-          style={[styles.chartCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
-          entering={ZoomIn.springify()}
-        >
+        <Animated.View entering={ZoomIn.springify()}>
+          <GlassCard style={styles.chartCard}>
           <Text style={[styles.chartTitle, { color: colors.textSecondary, marginBottom: 16 }]}>
             Top Rankings (MB)
           </Text>
@@ -225,6 +224,7 @@ export const AppsListScreen: React.FC = () => {
               );
             })}
           </View>
+          </GlassCard>
         </Animated.View>
       )}
     </View>

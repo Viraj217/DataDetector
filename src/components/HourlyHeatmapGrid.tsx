@@ -9,7 +9,7 @@ interface HourlyHeatmapGridProps {
 }
 
 export const HourlyHeatmapGrid: React.FC<HourlyHeatmapGridProps> = ({ data }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const [selectedCell, setSelectedCell] = useState<{ date: string; hour: number; bytes: number } | null>(null);
 
   // Generate lists of last 7 dates and 24 hours
@@ -102,9 +102,9 @@ export const HourlyHeatmapGrid: React.FC<HourlyHeatmapGridProps> = ({ data }) =>
                     style={[
                       styles.cell,
                       {
-                        backgroundColor: bytes > 0 ? colors.accent : colors.border,
-                        opacity: opacity,
-                        borderColor: selectedCell?.date === date && selectedCell?.hour === hour ? colors.text : 'transparent',
+                        backgroundColor: bytes > 0 ? colors.accent : (isDark ? colors.surfaceContainer : '#D1D5DB'),
+                        opacity: bytes > 0 ? opacity : 1,
+                        borderColor: selectedCell?.date === date && selectedCell?.hour === hour ? colors.text : (isDark ? colors.border : '#9CA3AF'),
                       },
                     ]}
                     onPress={() => setSelectedCell({ date, hour, bytes })}
@@ -169,10 +169,14 @@ const styles = StyleSheet.create({
   xLabelWrapper: {
     width: 22,
     alignItems: 'center',
+    overflow: 'visible',
   },
   xLabel: {
     fontSize: 9,
     fontWeight: '700',
+    width: 32,
+    textAlign: 'center',
+    marginLeft: -5,
   },
   dotSeparator: {
     width: 2,
