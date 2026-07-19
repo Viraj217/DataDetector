@@ -1,15 +1,22 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { Text } from './AppText';
 import Animated, { FadeIn, ZoomIn, FadeInRight } from 'react-native-reanimated';
 import { PieChart } from 'react-native-gifted-charts';
 import { useTheme } from '../theme/ThemeContext';
 import { formatBytes } from '../utils/formatBytes';
+import { Wifi, Smartphone, Radio } from 'lucide-react-native';
+import { DataParticles } from './DataParticles';
+
+import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 
 interface NetworkSplitRingProps {
   mobile: number;
   wifi: number;
   hotspot: number;
   size?: number;
+  usageRatio?: number;
+  centerLabel?: string;
 }
 
 export const NetworkSplitRing: React.FC<NetworkSplitRingProps> = ({
@@ -17,6 +24,8 @@ export const NetworkSplitRing: React.FC<NetworkSplitRingProps> = ({
   wifi,
   hotspot,
   size = 180,
+  usageRatio,
+  centerLabel = "Today's Total",
 }) => {
   const { colors } = useTheme();
 
@@ -36,10 +45,15 @@ export const NetworkSplitRing: React.FC<NetworkSplitRingProps> = ({
 
   const radius = size / 2;
   const innerRadius = radius - 18;
+  const pathRadius = innerRadius + (radius - innerRadius) / 2;
+  const showParticles = hasData && typeof usageRatio === 'number' && usageRatio > 0;
 
   return (
     <Animated.View style={styles.container} entering={FadeIn.duration(600)}>
-      <Animated.View style={styles.chartWrapper} entering={ZoomIn.springify().damping(14).delay(100)}>
+      <Animated.View
+        style={[styles.chartWrapper, { width: size, height: size }]}
+        entering={ZoomIn.springify().damping(14).delay(100)}
+      >
         <PieChart
           data={chartData}
           donut
@@ -48,6 +62,9 @@ export const NetworkSplitRing: React.FC<NetworkSplitRingProps> = ({
           innerCircleColor={colors.surface}
           focusOnPress
           toggleFocusOnPress={false}
+          onPress={() => {
+            ReactNativeHapticFeedback.trigger('impactLight');
+          }}
           centerLabelComponent={() => (
             <View style={styles.centerLabel}>
               <View style={styles.centerValueRow}>
@@ -59,17 +76,24 @@ export const NetworkSplitRing: React.FC<NetworkSplitRingProps> = ({
                 </Text>
               </View>
               <Text style={[styles.centerText, { color: colors.textSecondary }]}>
-                Today's Total
+                {centerLabel}
               </Text>
             </View>
           )}
         />
+        {showParticles && (
+          <DataParticles
+            radius={pathRadius}
+            size={size}
+            usageRatio={usageRatio}
+          />
+        )}
       </Animated.View>
 
       <Animated.View style={styles.legendContainer} entering={FadeInRight.delay(300).duration(500)}>
         <View style={styles.legendRow}>
           <View style={styles.legendItem}>
-            <View style={[styles.dot, { backgroundColor: colors.accent }]} />
+            <Wifi size={14} color={colors.accent} style={{ marginRight: 6 }} />
             <Text style={[styles.legendLabel, { color: colors.textSecondary }]}>Wi-Fi</Text>
           </View>
           <Text style={[styles.legendValue, { color: colors.text }]}>
@@ -79,7 +103,7 @@ export const NetworkSplitRing: React.FC<NetworkSplitRingProps> = ({
 
         <View style={styles.legendRow}>
           <View style={styles.legendItem}>
-            <View style={[styles.dot, { backgroundColor: colors.danger }]} />
+            <Smartphone size={14} color={colors.danger} style={{ marginRight: 6 }} />
             <Text style={[styles.legendLabel, { color: colors.textSecondary }]}>Mobile</Text>
           </View>
           <Text style={[styles.legendValue, { color: colors.text }]}>
@@ -89,7 +113,7 @@ export const NetworkSplitRing: React.FC<NetworkSplitRingProps> = ({
 
         <View style={styles.legendRow}>
           <View style={styles.legendItem}>
-            <View style={[styles.dot, { backgroundColor: colors.warning }]} />
+            <Radio size={14} color={colors.warning} style={{ marginRight: 6 }} />
             <Text style={[styles.legendLabel, { color: colors.textSecondary }]}>Hotspot</Text>
           </View>
           <Text style={[styles.legendValue, { color: colors.text }]}>
@@ -111,6 +135,8 @@ const styles = StyleSheet.create({
   chartWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+    overflow: 'hidden',
   },
   centerLabel: {
     alignItems: 'center',

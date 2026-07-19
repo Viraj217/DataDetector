@@ -1,6 +1,6 @@
-import React from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import { BarChart } from 'react-native-gifted-charts';
+import React, { useMemo } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from './AppText';
 import { useTheme } from '../theme/ThemeContext';
 import { formatBytes } from '../utils/formatBytes';
 
@@ -15,130 +15,179 @@ interface StackedBarChartProps {
   data: DailyTotalRow[];
 }
 
+const MIN_BAR_HEIGHT = 8;
+const MAX_BAR_HEIGHT = 170;
+
 export const StackedBarChart: React.FC<StackedBarChartProps> = ({ data }) => {
   const { colors } = useTheme();
 
-  // If no data, show placeholder
+  const chartData = useMemo(() => {
+    const rows = data.map((item) => {
+      const total = item.mobile + item.wifi + item.hotspot;
+      const dateParts = item.date.split('-');
+      const dateObj = new Date(
+        parseInt(dateParts[0], 10),
+        parseInt(dateParts[1], 10) - 1,
+        parseInt(dateParts[2], 10)
+      );
+
+      return {
+        ...item,
+        total,
+        label: dateObj.toLocaleDateString('en-US', { weekday: 'short' }),
+        shortDate: dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      };
+    });
+
+    const maxTotal = Math.max(...rows.map((row) => row.total), 1);
+    const totalBytes = rows.reduce((sum, row) => sum + row.total, 0);
+
+    return { rows, maxTotal, totalBytes };
+  }, [data]);
+
   if (!data || data.length === 0) {
     return (
-      <View style={styles.placeholderContainer}>
+      <View style={[styles.placeholderContainer, { borderColor: colors.border }]}>
         <Text style={{ color: colors.textSecondary }}>No historical data available.</Text>
       </View>
     );
   }
 
-  // Format data for gifted-charts Stacked Bar Chart
-  const screenWidth = Dimensions.get('window').width;
-  const chartWidth = screenWidth - 72; // Padding margins
-
-  // Find max value for scaling y-axis labels
-  const stackData = data.map((item) => {
-    const mobileMb = item.mobile / (1024 * 1024);
-    const wifiMb = item.wifi / (1024 * 1024);
-
-    // Format X-axis to Mon, Tue, etc.
-    const parts = item.date.split('-');
-    const dateObj = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-    const label = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-
-    // Mockup has Mobile (Purple) on bottom, Wi-Fi (Blue) on top
-    return {
-      stacks: [
-        { value: mobileMb, color: '#8B5CF6', marginBottom: 2 }, // Mobile
-        { value: wifiMb, color: '#2563EB' }, // Wi-Fi
-      ],
-      label: label,
-    };
-  });
-
   return (
     <View style={styles.container}>
-      <View style={styles.chartWrapper}>
-        <BarChart
-          stackData={stackData}
-          width={chartWidth}
-          height={180}
-          barWidth={24}
-          spacing={screenWidth > 400 ? 32 : 24}
-          noOfSections={4}
-          barBorderRadius={12}
-          initialSpacing={16}
-          xAxisColor="transparent"
-          yAxisColor="transparent"
-          xAxisThickness={0}
-          yAxisThickness={0}
-          yAxisLabelWidth={0}
-          hideYAxisText
-          xAxisLabelTextStyle={{ color: '#64748B', fontSize: 10, fontWeight: '600', textAlign: 'center' }}
-          hideRules
-          pointerConfig={{
-            pointerStripHeight: 180,
-            pointerStripColor: '#E2E8F0',
-            pointerStripWidth: 2,
-            pointerColor: '#8B5CF6',
-            radius: 4,
-            pointerLabelWidth: 90,
-            pointerLabelHeight: 60,
-            activatePointersOnLongPress: false,
-            autoAdjustPointerLabelPosition: true,
-            pointerLabelComponent: items => {
-              if (!items || !items[0]) return null;
-              
-              // For StackedBarChart, items[0] usually contains the stacked data or total value.
-              // We'll calculate the sum of the stacks to show the total for the day.
-              let total = 0;
-              if (items[0].stacks) {
-                items[0].stacks.forEach(stack => { total += stack.value; });
-              } else if (items[0].value) {
-                total = items[0].value;
-              }
-
-              return (
-                <View
-                  style={{
-                    backgroundColor: '#1E293B',
-                    padding: 8,
-                    borderRadius: 8,
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                  }}>
-                  <Text style={{color: '#F8FAFC', fontSize: 10, fontWeight: '700', marginBottom: 4}}>
-                    {total.toFixed(1)} MB
-                  </Text>
-                  <Text style={{color: '#94A3B8', fontSize: 9}}>
-                    Total Usage
-                  </Text>
-                </View>
-              );
-            },
-          }}
-        />
+      <View style={styles.summaryRow}>
+        <View>
+          <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Total in range</Text>
+          <Text style={[styles.summaryValue, { color: colors.text }]}>
+            {formatBytes(chartData.totalBytes).full}
+          </Text>
+        </View>
+        <Text style={[styles.summaryHint, { color: colors.textMuted }]}>Mobile, Wi-Fi, Hotspot</Text>
       </View>
 
-      {/* Custom Legend */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.chartScroll}
+      >
+        {chartData.rows.map((item) => {
+          const totalHeight = Math.max((item.total / chartData.maxTotal) * MAX_BAR_HEIGHT, item.total > 0 ? MIN_BAR_HEIGHT : 0);
+          const mobileHeight = item.total > 0 ? (item.mobile / item.total) * totalHeight : 0;
+          const wifiHeight = item.total > 0 ? (item.wifi / item.total) * totalHeight : 0;
+          const hotspotHeight = item.total > 0 ? (item.hotspot / item.total) * totalHeight : 0;
+
+          return (
+            <View key={item.date} style={styles.dayColumn}>
+              <View style={[styles.barTrack, { backgroundColor: colors.surfaceContainer }]}>
+                <View
+                  style={[
+                    styles.segment,
+                    {
+                      height: wifiHeight,
+                      backgroundColor: colors.accent,
+                    },
+                  ]}
+                />
+                <View
+                  style={[
+                    styles.segment,
+                    {
+                      height: mobileHeight,
+                      backgroundColor: colors.accentTertiary,
+                    },
+                  ]}
+                />
+                <View
+                  style={[
+                    styles.segment,
+                    {
+                      height: hotspotHeight,
+                      backgroundColor: colors.warning,
+                    },
+                  ]}
+                />
+              </View>
+              <Text style={[styles.dayLabel, { color: colors.textMuted }]}>{item.label}</Text>
+              <Text style={[styles.dateLabel, { color: colors.textMuted }]}>{item.shortDate}</Text>
+            </View>
+          );
+        })}
+      </ScrollView>
+
       <View style={styles.legendContainer}>
-        <View style={styles.legendItem}>
-          <View style={[styles.dot, { backgroundColor: '#8B5CF6' }]} />
-          <Text style={styles.legendLabel}>Mobile</Text>
-        </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.dot, { backgroundColor: '#2563EB' }]} />
-          <Text style={styles.legendLabel}>Wi-Fi</Text>
-        </View>
+        <LegendDot color={colors.accentTertiary} label="Mobile" textColor={colors.textSecondary} />
+        <LegendDot color={colors.accent} label="Wi-Fi" textColor={colors.textSecondary} />
+        <LegendDot color={colors.warning} label="Hotspot" textColor={colors.textSecondary} />
       </View>
     </View>
   );
 };
 
+const LegendDot: React.FC<{ color: string; label: string; textColor: string }> = ({
+  color,
+  label,
+  textColor,
+}) => (
+  <View style={styles.legendItem}>
+    <View style={[styles.dot, { backgroundColor: color }]} />
+    <Text style={[styles.legendLabel, { color: textColor }]}>{label}</Text>
+  </View>
+);
+
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: 10,
+    paddingVertical: 2,
   },
-  chartWrapper: {
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    marginBottom: 18,
+  },
+  summaryLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  summaryValue: {
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  summaryHint: {
+    fontSize: 10,
+    fontWeight: '700',
+    marginBottom: 3,
+  },
+  chartScroll: {
+    alignItems: 'flex-end',
+    paddingTop: 4,
+    paddingRight: 8,
+  },
+  dayColumn: {
     alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 0,
+    justifyContent: 'flex-end',
+    marginRight: 18,
+    width: 34,
+  },
+  barTrack: {
+    height: MAX_BAR_HEIGHT,
+    width: 30,
+    borderRadius: 15,
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
+  },
+  segment: {
+    width: '100%',
+  },
+  dayLabel: {
+    fontSize: 10,
+    fontWeight: '800',
     marginTop: 10,
+  },
+  dateLabel: {
+    fontSize: 8,
+    fontWeight: '700',
+    marginTop: 2,
   },
   placeholderContainer: {
     height: 180,
@@ -157,7 +206,7 @@ const styles = StyleSheet.create({
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 12,
+    marginHorizontal: 8,
   },
   dot: {
     width: 8,
@@ -167,7 +216,6 @@ const styles = StyleSheet.create({
   },
   legendLabel: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#0F172A',
+    fontWeight: '800',
   },
 });

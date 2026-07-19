@@ -2,15 +2,13 @@ import React, { useState, useCallback } from 'react';
 import {
   ScrollView,
   View,
-  Text,
   StyleSheet,
   RefreshControl,
   SafeAreaView,
-  FlatList,
   TouchableOpacity,
-  Dimensions,
   Image,
 } from 'react-native';
+import { Text } from '../components/AppText';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { TodayStackParamList } from '../navigation/types';
@@ -19,16 +17,22 @@ import { queries } from '../database/queries';
 import { syncService } from '../services/syncService';
 import { dateUtils } from '../utils/dateUtils';
 import { formatBytes } from '../utils/formatBytes';
-import Animated, { FadeIn, FadeInDown, FadeInRight } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import LinearGradient from 'react-native-linear-gradient';
 import { PieChart } from 'react-native-gifted-charts';
+import { 
+  Smartphone, 
+  Wifi, 
+  TrendingUp, 
+  TrendingDown,
+} from 'lucide-react-native';
 import { GlassCard } from '../components/GlassCard';
 import { SkeletonLoader } from '../components/SkeletonLoader';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<TodayStackParamList, 'TodayHome'>;
 
 export const HomeScreen: React.FC = () => {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const navigation = useNavigation<HomeScreenNavigationProp>();
 
   // State
@@ -122,25 +126,14 @@ export const HomeScreen: React.FC = () => {
   const mobileTotal = networkSplit.mobile + networkSplit.hotspot;
   const dailyMobileLimit = mobileLimit / 30;
   const dailyWifiLimit = wifiLimit / 30;
-  const mobileUsageRatio = Math.min(mobileTotal / dailyMobileLimit, 1);
   const remainingMobile = Math.max(dailyMobileLimit - mobileTotal, 0);
   const remainingWifi = Math.max(dailyWifiLimit - networkSplit.wifi, 0);
 
   const renderHeader = () => (
     <View style={styles.headerContainer}>
-      <View style={styles.headerTitleRow}>
-        <View style={styles.headerLogoContainer}>
-           <Text style={styles.headerLogoIcon}>📊</Text>
-           <Text style={[styles.headerLogoText, { color: colors.accent }]}>DataDetector</Text>
-        </View>
-        <TouchableOpacity onPress={handleRefresh} style={styles.headerRefreshBtn}>
-          <Text style={{color: colors.accent, fontSize: 18}}>🔄</Text>
-        </TouchableOpacity>
-      </View>
-
       <View style={styles.heroWrapper}>
         <View>
-          <Text style={[styles.heroTitle, { color: colors.text }]}>Today's Usage</Text>
+          <Text style={[styles.heroTitle, { color: colors.text }]}>Today</Text>
           <Text style={[styles.heroSubText, { color: colors.textSecondary }]}>You're on track to stay within your limits.</Text>
         </View>
         <View style={[styles.badge, { backgroundColor: colors.surfaceContainer }]}>
@@ -171,7 +164,7 @@ export const HomeScreen: React.FC = () => {
                 data={[{ value: mobileTotal, color: '#6D28D9' }, { value: remainingMobile, color: '#EDE9FE' }]}
                 centerLabelComponent={() => (
                   <View style={styles.centerLabel}>
-                    <Text style={{fontSize: 20, color: '#6D28D9', fontWeight: '800', marginBottom: 2}}>{'(( A ))'}</Text>
+                    <Smartphone size={24} color="#6D28D9" style={{ marginBottom: 4 }} />
                     <Text style={[styles.centerValue, { color: colors.text }]} numberOfLines={1}>{formatBytes(mobileTotal).value}</Text>
                     <Text style={[styles.centerUnit, { color: colors.textMuted }]}>{formatBytes(mobileTotal).unit} USED</Text>
                   </View>
@@ -214,7 +207,7 @@ export const HomeScreen: React.FC = () => {
                 data={[{ value: networkSplit.wifi, color: '#0284C7' }, { value: remainingWifi, color: '#E0F2FE' }]}
                 centerLabelComponent={() => (
                   <View style={styles.centerLabel}>
-                    <Text style={{fontSize: 20, color: '#0284C7', fontWeight: '800', marginBottom: 2}}>{'((📶))'}</Text>
+                    <Wifi size={24} color="#0284C7" style={{ marginBottom: 4 }} />
                     <Text style={[styles.centerValue, { color: colors.text }]} numberOfLines={1}>{formatBytes(networkSplit.wifi).value}</Text>
                     <Text style={[styles.centerUnit, { color: colors.textMuted }]}>{formatBytes(networkSplit.wifi).unit} USED</Text>
                   </View>
@@ -229,9 +222,12 @@ export const HomeScreen: React.FC = () => {
               </View>
               <View style={[styles.statBox, { alignItems: 'flex-end' }]}>
                 <Text style={[styles.statLabel, { color: colors.textMuted }]}>Trend</Text>
-                <Text style={[styles.statValue, { color: wifiTrend >= 0 ? colors.danger : '#0284C7' }]}>
-                  {wifiTrend > 0 ? '📈' : '📉'} {wifiTrend > 0 ? '+' : ''}{wifiTrend.toFixed(1)}%
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  {wifiTrend > 0 ? <TrendingUp size={16} color={colors.danger} /> : <TrendingDown size={16} color="#0284C7" />}
+                  <Text style={[styles.statValue, { color: wifiTrend >= 0 ? colors.danger : '#0284C7' }]}>
+                    {wifiTrend > 0 ? '+' : ''}{wifiTrend.toFixed(1)}%
+                  </Text>
+                </View>
               </View>
             </View>
           </View>
@@ -246,13 +242,19 @@ export const HomeScreen: React.FC = () => {
               <Text style={[styles.budgetSub, { color: colors.textSecondary }]}>End of cycle prediction</Text>
             </View>
             <View style={[styles.budgetIconBg, { backgroundColor: 'rgba(99, 102, 241, 0.15)' }]}>
-               <Text style={{fontSize: 16}}>📈</Text>
+               <TrendingUp size={20} color={colors.accent} />
             </View>
           </View>
           
           <View style={styles.budgetProgressRow}>
-            <Text style={[styles.budgetTotal, { color: colors.text }]}>{formatBytes(todayTotal).value}</Text>
-            <Text style={[styles.budgetTotalUnit, { color: colors.textSecondary }]}>{formatBytes(todayTotal).unit} / {formatBytes(mobileLimit).full}</Text>
+            <Text style={[styles.budgetTotal, { color: colors.text }]}>
+              {formatBytes(todayTotal).value}
+              <Text style={{ fontSize: 16, color: colors.textSecondary, fontWeight: '500' }}> {formatBytes(todayTotal).unit}</Text>
+            </Text>
+            <Text style={[styles.budgetTotalUnit, { color: colors.textSecondary }]}>
+              / {formatBytes(mobileLimit).value}
+              <Text style={{ fontSize: 11, color: colors.textSecondary, fontWeight: '500' }}> {formatBytes(mobileLimit).unit}</Text>
+            </Text>
           </View>
           
           <View style={[styles.progressBarBg, { backgroundColor: colors.surfaceContainer }]}>
@@ -269,22 +271,6 @@ export const HomeScreen: React.FC = () => {
         </GlassCard>
       </Animated.View>
 
-      <Animated.View entering={FadeInDown.delay(350).springify()} style={styles.quickActionsRow}>
-        <TouchableOpacity style={styles.quickActionBtn}>
-           <View style={[styles.quickActionIconBg, { backgroundColor: 'rgba(168, 85, 247, 0.15)' }]}>
-             <Text style={{fontSize: 20}}>🛡️</Text>
-           </View>
-           <Text style={[styles.quickActionText, { color: colors.text }]}>Manage{"\n"}Permissions</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.quickActionBtn}>
-           <View style={[styles.quickActionIconBg, { backgroundColor: 'rgba(59, 130, 246, 0.15)' }]}>
-             <Text style={{fontSize: 20}}>⚡</Text>
-           </View>
-           <Text style={[styles.quickActionText, { color: colors.text }]}>Speed{"\n"}Monitor</Text>
-        </TouchableOpacity>
-      </Animated.View>
-
       <Text style={[styles.sectionTitle, { color: colors.text }]}>Top Apps Today</Text>
       
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
@@ -296,7 +282,7 @@ export const HomeScreen: React.FC = () => {
                     {app.icon_uri ? (
                       <Image source={{ uri: app.icon_uri }} style={styles.mockupAppIcon} />
                     ) : (
-                      <Text style={{fontSize: 20}}>📱</Text>
+                      <Smartphone size={24} color="#6366F1" />
                     )}
                   </View>
                   <Text style={[styles.mockupAppName, { color: colors.text }]} numberOfLines={1}>{app.display_name || app.package_name}</Text>
@@ -323,13 +309,8 @@ export const HomeScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { padding: 20, paddingBottom: 100 },
+  scrollContent: { padding: 20, paddingTop: 16, paddingBottom: 100 },
   loadingWrapper: { flex: 1, padding: 16 },
-  headerTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, paddingVertical: 8 },
-  headerLogoContainer: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  headerLogoIcon: { fontSize: 20 },
-  headerLogoText: { fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
-  headerRefreshBtn: { padding: 4 },
   heroWrapper: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   heroTitle: { fontSize: 28, fontWeight: '800' },
   heroSubText: { fontSize: 13, marginTop: 4 },

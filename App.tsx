@@ -1,10 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
-  ActivityIndicator,
   AppState,
   StatusBar,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -17,6 +15,7 @@ import { syncService } from './src/services/syncService';
 import { initBackgroundFetch } from './src/services/backgroundSync';
 import { notificationService } from './src/services/notificationService';
 import { queries } from './src/database/queries';
+import { AppLoadingSkeleton } from './src/components/AppLoadingSkeleton';
 
 
 function App() {
@@ -87,17 +86,14 @@ function AppContent() {
     };
   }, []);
 
-  if (permissionGranted === null || isSyncing || onboardingCompleted === null) {
+  if (permissionGranted === null || onboardingCompleted === null) {
     return (
-      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <StatusBar
           barStyle={isDark ? 'light-content' : 'dark-content'}
           backgroundColor={colors.background}
         />
-        <ActivityIndicator size="large" color={colors.accent} />
-        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
-          {isSyncing ? 'Synchronizing usage data...' : 'Verifying permissions...'}
-        </Text>
+        <AppLoadingSkeleton />
       </View>
     );
   }
@@ -142,16 +138,6 @@ function AppContent() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 14,
-    fontWeight: '500',
   },
 });
 

@@ -1,13 +1,13 @@
 import React, { useState, useCallback } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   SafeAreaView,
   FlatList,
   TouchableOpacity,
   RefreshControl,
 } from 'react-native';
+import { Text } from '../components/AppText';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../theme/ThemeContext';
 import { queries } from '../database/queries';
@@ -16,6 +16,7 @@ import { dateUtils } from '../utils/dateUtils';
 import { haptics } from '../utils/haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Svg, Path, Rect, Circle } from 'react-native-svg';
+import { Smartphone, Wifi } from 'lucide-react-native';
 
 // Custom Category Icon mapping using SVG
 const CategoryIcon: React.FC<{ category: string; size: number; color: string }> = ({ category, size, color }) => {
@@ -105,7 +106,7 @@ export const CategoriesScreen: React.FC = () => {
     return (
       <Animated.View
         style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
-        entering={FadeInDown.delay(index * 100).springify().damping(14)}
+        entering={FadeInDown.delay(Math.min(index * 25, 100)).duration(180)}
       >
         <View style={styles.header}>
           <View style={[styles.iconWrapper, { backgroundColor: colors.accentSemiTrans }]}>
@@ -142,12 +143,18 @@ export const CategoriesScreen: React.FC = () => {
             />
           </View>
           <View style={styles.legendRow}>
-            <Text style={[styles.legendText, { color: colors.textMuted }]}>
-              Mobile: {formattedMobile.full} ({mobilePercent.toFixed(0)}%)
-            </Text>
-            <Text style={[styles.legendText, { color: colors.textMuted }]}>
-              WiFi: {formattedWifi.full} ({wifiPercent.toFixed(0)}%)
-            </Text>
+            <View style={styles.legendItem}>
+              <Smartphone size={12} color={colors.textMuted} />
+              <Text style={[styles.legendText, { color: colors.textMuted }]}>
+                Mobile: {formattedMobile.full} ({mobilePercent.toFixed(0)}%)
+              </Text>
+            </View>
+            <View style={styles.legendItem}>
+              <Wifi size={12} color={colors.textMuted} />
+              <Text style={[styles.legendText, { color: colors.textMuted }]}>
+                WiFi: {formattedWifi.full} ({wifiPercent.toFixed(0)}%)
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -258,6 +265,11 @@ const styles = StyleSheet.create({
   legendRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   legendText: {
     fontSize: 11,

@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { View, StyleSheet, Dimensions } from 'react-native';
+import { Text } from './AppText';
 import { LineChart } from 'react-native-gifted-charts';
 import { useTheme } from '../theme/ThemeContext';
 
@@ -17,7 +18,7 @@ export const WeekComparisonChart: React.FC<WeekComparisonChartProps> = ({
   thisWeek,
   lastWeek,
 }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
 
   const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -95,14 +96,14 @@ export const WeekComparisonChart: React.FC<WeekComparisonChartProps> = ({
           data2={lastWeekAligned}
           width={chartWidth}
           height={160}
-          color="#6D28D9"
-          color2="#9CA3AF"
+          color={colors.accentTertiary}
+          color2={colors.textMuted}
           thickness={4}
           thickness2={2}
           strokeDashArray2={[6, 6]}
           noOfSections={3}
           hideRules={false}
-          rulesColor="#F1F5F9"
+          rulesColor={colors.divider}
           rulesType="solid"
           yAxisColor="transparent"
           xAxisColor="transparent"
@@ -110,14 +111,15 @@ export const WeekComparisonChart: React.FC<WeekComparisonChartProps> = ({
           xAxisThickness={0}
           hideYAxisText
           hideDataPoints
+          xAxisLabelTextStyle={{ color: colors.textMuted, fontSize: 10, fontWeight: '700' }}
           initialSpacing={10}
           endSpacing={10}
           adjustToWidth
           pointerConfig={{
             pointerStripHeight: 160,
-            pointerStripColor: '#E2E8F0',
+            pointerStripColor: colors.divider,
             pointerStripWidth: 2,
-            pointerColor: '#6D28D9',
+            pointerColor: colors.accentTertiary,
             radius: 4,
             pointerLabelWidth: 80,
             pointerLabelHeight: 60,
@@ -128,16 +130,16 @@ export const WeekComparisonChart: React.FC<WeekComparisonChartProps> = ({
               return (
                 <View
                   style={{
-                    backgroundColor: '#1E293B',
+                    backgroundColor: isDark ? colors.surfaceContainer : '#1E293B',
                     padding: 8,
                     borderRadius: 8,
                     justifyContent: 'center',
                     alignItems: 'center',
                   }}>
-                  <Text style={{color: '#F8FAFC', fontSize: 10, fontWeight: '700', marginBottom: 4}}>
+                  <Text style={{color: isDark ? colors.text : '#F8FAFC', fontSize: 10, fontWeight: '700', marginBottom: 4}}>
                     {items[0].value.toFixed(1)} MB
                   </Text>
-                  <Text style={{color: '#94A3B8', fontSize: 9}}>
+                  <Text style={{color: isDark ? colors.textSecondary : '#94A3B8', fontSize: 9}}>
                     This Week
                   </Text>
                 </View>
@@ -150,23 +152,27 @@ export const WeekComparisonChart: React.FC<WeekComparisonChartProps> = ({
       {/* Legend */}
       <View style={styles.legendContainer}>
         <View style={[styles.legendItem, { marginRight: 24 }]}>
-          <View style={[styles.line, { backgroundColor: '#9CA3AF', borderStyle: 'dashed', borderWidth: 1 }]} />
-          <Text style={styles.legendLabel}>PREV. WEEK</Text>
+          <View style={[styles.line, { backgroundColor: colors.textMuted, opacity: 0.8 }]} />
+          <Text style={[styles.legendLabel, { color: colors.textMuted }]}>PREV. WEEK</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.line, { backgroundColor: '#6D28D9' }]} />
-          <Text style={[styles.legendLabel, { color: '#6D28D9' }]}>THIS WEEK</Text>
+          <View style={[styles.line, { backgroundColor: colors.accentTertiary }]} />
+          <Text style={[styles.legendLabel, { color: colors.accentTertiary }]}>THIS WEEK</Text>
         </View>
       </View>
 
       {/* Efficiency Summary Card */}
-      <View style={styles.efficiencyCard}>
-        <View style={styles.efficiencyIconWrap}>
-          <Text style={styles.efficiencyIcon}>{isMoreEfficient ? '↗️' : '↘️'}</Text>
+      <View style={[styles.efficiencyCard, { backgroundColor: colors.surfaceContainer }]}>
+        <View style={[styles.efficiencyIconWrap, { backgroundColor: isMoreEfficient ? colors.accentSemiTrans : 'rgba(245, 158, 11, 0.16)' }]}>
+          <Text style={[styles.efficiencyIcon, { color: isMoreEfficient ? colors.accent : colors.warning }]}>
+            {isMoreEfficient ? 'UP' : 'DOWN'}
+          </Text>
         </View>
         <View style={styles.efficiencyTextWrap}>
-          <Text style={styles.efficiencyTitle}>{efficiencyText}</Text>
-          <Text style={styles.efficiencySub}>Compared to last week's average daily spend.</Text>
+          <Text style={[styles.efficiencyTitle, { color: colors.text }]}>{efficiencyText}</Text>
+          <Text style={[styles.efficiencySub, { color: colors.textSecondary }]}>
+            Compared to last week's average daily spend.
+          </Text>
         </View>
       </View>
     </View>
@@ -181,14 +187,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 0,
-    marginTop: 10,
+    marginTop: 4,
   },
   legendContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 24,
+    marginTop: 14,
+    marginBottom: 20,
   },
   legendItem: {
     flexDirection: 'row',
@@ -203,33 +209,26 @@ const styles = StyleSheet.create({
   legendLabel: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#64748B',
     letterSpacing: 0.5,
   },
   efficiencyCard: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
+    borderRadius: 20,
     padding: 16,
     marginTop: 8,
-    shadowColor: '#9CA3AF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 2,
     alignItems: 'center',
   },
   efficiencyIconWrap: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#EDE9FE',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
   },
   efficiencyIcon: {
-    fontSize: 18,
+    fontSize: 9,
+    fontWeight: '900',
   },
   efficiencyTextWrap: {
     flex: 1,
@@ -237,12 +236,10 @@ const styles = StyleSheet.create({
   efficiencyTitle: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#0F172A',
     marginBottom: 2,
   },
   efficiencySub: {
     fontSize: 11,
-    color: '#64748B',
     lineHeight: 16,
   },
 });

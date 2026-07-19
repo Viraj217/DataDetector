@@ -85,7 +85,7 @@ const TodayStackNavigator = () => {
       <TodayStack.Screen
         name="TodayHome"
         component={HomeScreen}
-        options={{ title: 'Today' }}
+        options={{ title: 'DataDetector' }}
       />
       <TodayStack.Screen
         name="AppDetail"

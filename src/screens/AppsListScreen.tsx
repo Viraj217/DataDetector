@@ -7,19 +7,17 @@ import {
   FlatList,
   TextInput,
   TouchableOpacity,
-  Dimensions,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AppsStackParamList } from '../navigation/types';
-import { BarChart } from 'react-native-gifted-charts';
 import { useTheme } from '../theme/ThemeContext';
 import { queries } from '../database/queries';
 import { formatBytes } from '../utils/formatBytes';
 import { AppUsageRow } from '../components/AppUsageRow';
 import { SkeletonLoader } from '../components/SkeletonLoader';
 import { GlassCard } from '../components/GlassCard';
-import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Svg, Path } from 'react-native-svg';
 import { dateUtils } from '../utils/dateUtils';
 import { haptics } from '../utils/haptics';
@@ -188,7 +186,7 @@ export const AppsListScreen: React.FC = () => {
 
       {/* Horizontal rankings bar chart */}
       {chartData.length > 0 && (
-        <Animated.View entering={ZoomIn.springify()}>
+        <Animated.View entering={FadeInDown.duration(220)}>
           <GlassCard style={styles.chartCard}>
           <Text style={[styles.chartTitle, { color: colors.textSecondary, marginBottom: 16 }]}>
             Top Rankings (MB)
@@ -273,6 +271,7 @@ export const AppsListScreen: React.FC = () => {
               wifiBytes={item.wifi_bytes}
               hotspotBytes={item.hotspot_bytes}
               index={index}
+              animate={false}
               onPress={() => navigation.navigate('AppDetail', { packageName: item.package_name })}
             />
           )}

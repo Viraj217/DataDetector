@@ -1,89 +1,91 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Animated, StyleSheet, StyleProp, ViewStyle } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, StyleSheet, StyleProp, ViewStyle, LayoutChangeEvent } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
+import LinearGradient from 'react-native-linear-gradient';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 
 interface SkeletonLoaderProps {
   style?: StyleProp<ViewStyle>;
   variant?: 'card' | 'row' | 'text';
 }
 
-export const SkeletonLoader: React.FC<SkeletonLoaderProps> = ({ style, variant = 'row' }) => {
-  const { colors } = useTheme();
-  const fadeAnim = useRef(new Animated.Value(0.3)).current;
+const ShimmerBlock: React.FC<{ style: StyleProp<ViewStyle> }> = ({ style }) => {
+  const { isDark } = useTheme();
+  const translateX = useSharedValue(-100);
+  const [width, setWidth] = useState(0);
+
+  const onLayout = (e: LayoutChangeEvent) => {
+    setWidth(e.nativeEvent.layout.width);
+  };
 
   useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(fadeAnim, {
-          toValue: 0.7,
-          duration: 800,
-          useNativeDriver: true,
+    if (width > 0) {
+      translateX.value = -width;
+      translateX.value = withRepeat(
+        withTiming(width, {
+          duration: 1200,
+          easing: Easing.bezier(0.3, 0.1, 0.3, 1),
         }),
-        Animated.timing(fadeAnim, {
-          toValue: 0.3,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [fadeAnim]);
+        -1,
+        false
+      );
+    }
+  }, [width]);
 
-  const skeletonColor = colors.card;
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateX: translateX.value }],
+    };
+  });
 
+  const baseColor = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.06)';
+  const highlightColor = isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.12)';
+
+  return (
+    <View
+      style={[
+        { backgroundColor: baseColor, overflow: 'hidden', position: 'relative' },
+        style,
+      ]}
+      onLayout={onLayout}
+    >
+      {width > 0 && (
+        <Animated.View style={[StyleSheet.absoluteFill, animatedStyle]}>
+          <LinearGradient
+            colors={[baseColor, highlightColor, baseColor]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={StyleSheet.absoluteFill}
+          />
+        </Animated.View>
+      )}
+    </View>
+  );
+};
+
+export const SkeletonLoader: React.FC<SkeletonLoaderProps> = ({ style, variant = 'row' }) => {
   if (variant === 'card') {
-    return (
-      <Animated.View
-        style={[
-          styles.card,
-          { backgroundColor: skeletonColor, opacity: fadeAnim },
-          style,
-        ]}
-      />
-    );
+    return <ShimmerBlock style={[styles.card, style]} />;
   }
 
   if (variant === 'text') {
-    return (
-      <Animated.View
-        style={[
-          styles.text,
-          { backgroundColor: skeletonColor, opacity: fadeAnim },
-          style,
-        ]}
-      />
-    );
+    return <ShimmerBlock style={[styles.text, style]} />;
   }
 
   return (
     <View style={[styles.rowContainer, style]}>
-      <Animated.View
-        style={[
-          styles.avatar,
-          { backgroundColor: skeletonColor, opacity: fadeAnim },
-        ]}
-      />
+      <ShimmerBlock style={styles.avatar} />
       <View style={styles.textContainer}>
-        <Animated.View
-          style={[
-            styles.titleLine,
-            { backgroundColor: skeletonColor, opacity: fadeAnim },
-          ]}
-        />
-        <Animated.View
-          style={[
-            styles.subLine,
-            { backgroundColor: skeletonColor, opacity: fadeAnim },
-          ]}
-        />
+        <ShimmerBlock style={styles.titleLine} />
+        <ShimmerBlock style={styles.subLine} />
       </View>
-      <Animated.View
-        style={[
-          styles.rightBlock,
-          { backgroundColor: skeletonColor, opacity: fadeAnim },
-        ]}
-      />
+      <ShimmerBlock style={styles.rightBlock} />
     </View>
   );
 };

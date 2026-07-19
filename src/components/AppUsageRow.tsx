@@ -1,9 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { Text } from './AppText';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '../theme/ThemeContext';
 import { formatBytes } from '../utils/formatBytes';
 import { GlassCard } from './GlassCard';
+import { Smartphone, Wifi } from 'lucide-react-native';
 
 interface AppUsageRowProps {
   displayName: string;
@@ -16,6 +18,7 @@ interface AppUsageRowProps {
   sparklineData?: number[]; // last 7 days bytes
   onPress?: () => void;
   index?: number;
+  animate?: boolean;
 }
 
 export const AppUsageRow: React.FC<AppUsageRowProps> = ({
@@ -29,8 +32,9 @@ export const AppUsageRow: React.FC<AppUsageRowProps> = ({
   sparklineData = [],
   onPress,
   index = 0,
+  animate = true,
 }) => {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const formatted = formatBytes(totalBytes);
 
   const delay = Math.min(index * 50, 400);
@@ -57,42 +61,56 @@ export const AppUsageRow: React.FC<AppUsageRowProps> = ({
   // or we could use sparkline data if we want.
   const progressPercent = Math.min((totalBytes / (2 * 1024 * 1024 * 1024)) * 100, 100); 
 
-  return (
-    <Animated.View entering={FadeInDown.delay(delay).springify().damping(16)}>
-      <TouchableOpacity
-        onPress={onPress}
-        disabled={!onPress}
-        activeOpacity={0.7}
-      >
-        <GlassCard style={styles.container}>
-          {renderIcon()}
+  const content = (
+    <TouchableOpacity
+      onPress={onPress}
+      disabled={!onPress}
+      activeOpacity={0.7}
+    >
+      <GlassCard style={styles.container}>
+        {renderIcon()}
 
-          <View style={styles.detailsContainer}>
-            <Text style={[styles.appName, { color: colors.text }]} numberOfLines={1}>
-              {displayName || packageName}
+        <View style={styles.detailsContainer}>
+          <Text style={[styles.appName, { color: colors.text }]} numberOfLines={1}>
+            {displayName || packageName}
+          </Text>
+          
+          <View style={styles.networkIndicators}>
+            <Text style={[styles.pkgText, { color: colors.textMuted }]} numberOfLines={1}>
+              {packageName}
             </Text>
-            
-            <View style={styles.networkIndicators}>
-              <Text style={[styles.pkgText, { color: colors.textMuted }]} numberOfLines={1}>
-                {packageName}
-              </Text>
+          </View>
+          <View style={styles.splitUsage}>
+            <View style={styles.splitItem}>
+              <Smartphone size={12} color={colors.accent} />
+              <Text style={[styles.splitText, { color: colors.accent }]}>{formatBytes(mobileBytes).full}</Text>
             </View>
-            <View style={styles.splitUsage}>
-              <Text style={[styles.splitText, { color: colors.accent }]}>📱 {formatBytes(mobileBytes).full}</Text>
-              <Text style={[styles.splitText, { color: colors.accentTertiary }]}>📶 {formatBytes(wifiBytes).full}</Text>
-            </View>
-            
-            <View style={[styles.progressBarBg, { backgroundColor: colors.surfaceContainer }]}>
-               <View style={[styles.progressBarFill, { backgroundColor: colors.accent, width: `${Math.max(progressPercent, 5)}%` }]} />
+            <View style={styles.splitItem}>
+              <Wifi size={12} color={colors.accentTertiary} />
+              <Text style={[styles.splitText, { color: colors.accentTertiary }]}>{formatBytes(wifiBytes).full}</Text>
             </View>
           </View>
+          
+          <View style={[styles.progressBarBg, { backgroundColor: colors.surfaceContainer }]}>
+             <View style={[styles.progressBarFill, { backgroundColor: colors.accent, width: `${Math.max(progressPercent, 5)}%` }]} />
+          </View>
+        </View>
 
-          <View style={styles.usageContainer}>
-             <Text style={[styles.usageVal, { color: colors.accent }]}>{formatted.value}</Text>
-             <Text style={[styles.usageUnit, { color: colors.textSecondary }]}>{formatted.unit}</Text>
-          </View>
-        </GlassCard>
-      </TouchableOpacity>
+        <View style={styles.usageContainer}>
+           <Text style={[styles.usageVal, { color: colors.accent }]}>{formatted.value}</Text>
+           <Text style={[styles.usageUnit, { color: colors.textSecondary }]}>{formatted.unit}</Text>
+        </View>
+      </GlassCard>
+    </TouchableOpacity>
+  );
+
+  if (!animate) {
+    return content;
+  }
+
+  return (
+    <Animated.View entering={FadeInDown.delay(delay).duration(220)}>
+      {content}
     </Animated.View>
   );
 };
@@ -143,9 +161,14 @@ const styles = StyleSheet.create({
   },
   splitUsage: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 12,
     marginTop: 4,
     marginBottom: 6,
+  },
+  splitItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   splitText: {
     fontSize: 10,

@@ -2,12 +2,12 @@ import React, { useState, useCallback } from 'react';
 import {
   ScrollView,
   View,
-  Text,
   StyleSheet,
   Image,
   SafeAreaView,
   Dimensions,
 } from 'react-native';
+import { Text } from '../components/AppText';
 import { useRoute, useFocusEffect, RouteProp } from '@react-navigation/native';
 import { TodayStackParamList } from '../navigation/types';
 import { LineChart, BarChart } from 'react-native-gifted-charts';
@@ -16,8 +16,51 @@ import { queries } from '../database/queries';
 import { formatBytes } from '../utils/formatBytes';
 import { dateUtils } from '../utils/dateUtils';
 import { SkeletonLoader } from '../components/SkeletonLoader';
+import { Wifi, Smartphone, Radio } from 'lucide-react-native';
+import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 
 type AppDetailScreenRouteProp = RouteProp<TodayStackParamList, 'AppDetail'>;
+
+const HapticTooltip = ({ item, colors }: { item: any; colors: any }) => {
+  const lastVal = React.useRef(item.value);
+
+  React.useEffect(() => {
+    if (lastVal.current !== item.value) {
+      lastVal.current = item.value;
+      ReactNativeHapticFeedback.trigger('impactLight', {
+        enableVibrateFallback: true,
+        ignoreAndroidSystemSettings: false,
+      });
+    }
+  }, [item.value]);
+
+  return (
+    <View
+      style={{
+        backgroundColor: colors.surface,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: colors.border,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+        justifyContent: 'center',
+        minWidth: 80,
+      }}
+    >
+      <Text style={{ fontSize: 9, color: colors.textSecondary, fontWeight: '700' }}>
+        {item.label || 'Date'}
+      </Text>
+      <Text style={{ fontSize: 12, color: colors.text, fontWeight: '800', marginTop: 2 }}>
+        {item.value.toFixed(1)} MB
+      </Text>
+    </View>
+  );
+};
 
 export const AppDetailScreen: React.FC = () => {
   const { colors } = useTheme();
@@ -227,6 +270,22 @@ export const AppDetailScreen: React.FC = () => {
               hideDataPoints
               initialSpacing={10}
               adjustToWidth
+              showPointerOnPress
+              pointerConfig={{
+                pointerStripHeight: 140,
+                pointerStripColor: colors.accentSemiTrans || 'rgba(99, 102, 241, 0.2)',
+                pointerStripWidth: 2,
+                pointerColor: colors.accent,
+                radius: 6,
+                pointerLabelWidth: 100,
+                pointerLabelHeight: 90,
+                activatePointersOnLongPress: false,
+                autoAdjustPointerLabelPosition: true,
+                pointerLabelComponent: (items: any) => {
+                  if (!items || items.length === 0) return null;
+                  return <HapticTooltip item={items[0]} colors={colors} />;
+                },
+              }}
             />
           </View>
         </View>
@@ -295,19 +354,28 @@ export const AppDetailScreen: React.FC = () => {
                 
                 <View style={styles.rowBreakdown}>
                   {day.wifi > 0 && (
-                    <Text style={[styles.rowBreakdownText, { color: colors.accent }]}>
-                      W: {formatBytes(day.wifi, 1).full}
-                    </Text>
+                    <View style={styles.breakdownItem}>
+                      <Wifi size={10} color={colors.accent} />
+                      <Text style={[styles.rowBreakdownText, { color: colors.accent }]}>
+                        {formatBytes(day.wifi, 1).full}
+                      </Text>
+                    </View>
                   )}
                   {day.mobile > 0 && (
-                    <Text style={[styles.rowBreakdownText, { color: colors.danger }]}>
-                      M: {formatBytes(day.mobile, 1).full}
-                    </Text>
+                    <View style={styles.breakdownItem}>
+                      <Smartphone size={10} color={colors.danger} />
+                      <Text style={[styles.rowBreakdownText, { color: colors.danger }]}>
+                        {formatBytes(day.mobile, 1).full}
+                      </Text>
+                    </View>
                   )}
                   {day.hotspot > 0 && (
-                    <Text style={[styles.rowBreakdownText, { color: colors.warning }]}>
-                      H: {formatBytes(day.hotspot, 1).full}
-                    </Text>
+                    <View style={styles.breakdownItem}>
+                      <Radio size={10} color={colors.warning} />
+                      <Text style={[styles.rowBreakdownText, { color: colors.warning }]}>
+                        {formatBytes(day.hotspot, 1).full}
+                      </Text>
+                    </View>
                   )}
                 </View>
                 
@@ -477,11 +545,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
+    gap: 8,
+  },
+  breakdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
   },
   rowBreakdownText: {
     fontSize: 9,
     fontWeight: '700',
-    marginHorizontal: 4,
   },
   rowTotal: {
     fontSize: 12,

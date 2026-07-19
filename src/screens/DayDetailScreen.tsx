@@ -1,12 +1,12 @@
 import React, { useState, useCallback } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   SafeAreaView,
   FlatList,
   TouchableOpacity,
 } from 'react-native';
+import { Text } from '../components/AppText';
 import { useRoute, useNavigation, useFocusEffect, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { HistoryStackParamList } from '../navigation/types';
@@ -16,6 +16,7 @@ import { formatBytes } from '../utils/formatBytes';
 import { NetworkSplitRing } from '../components/NetworkSplitRing';
 import { AppUsageRow } from '../components/AppUsageRow';
 import { SkeletonLoader } from '../components/SkeletonLoader';
+import { budgetService } from '../services/budgetService';
 
 type DayDetailScreenRouteProp = RouteProp<HistoryStackParamList, 'DayDetail'>;
 type DayDetailScreenNavigationProp = NativeStackNavigationProp<HistoryStackParamList, 'DayDetail'>;
@@ -31,6 +32,7 @@ export const DayDetailScreen: React.FC = () => {
   // State
   const [loading, setLoading] = useState(true);
   const [networkSplit, setNetworkSplit] = useState({ wifi: 0, mobile: 0, hotspot: 0 });
+  const [usageRatio, setUsageRatio] = useState<number | undefined>();
   const [appsData, setAppsData] = useState<any[]>([]);
   const [sortType, setSortType] = useState<SortType>('total');
 
@@ -48,6 +50,7 @@ export const DayDetailScreen: React.FC = () => {
         else if (row.network_type === 'hotspot') hotspot = row.total_bytes;
       }
       setNetworkSplit({ wifi, mobile, hotspot });
+      setUsageRatio(calculateDailyUsageRatio(date, mobile, hotspot));
 
       // 2. Load apps usage for that date
       const apps = queries.getTopAppsTodayAggregated(date, 50);
@@ -110,6 +113,9 @@ export const DayDetailScreen: React.FC = () => {
           mobile={networkSplit.mobile}
           wifi={networkSplit.wifi}
           hotspot={networkSplit.hotspot}
+          size={156}
+          usageRatio={usageRatio}
+          centerLabel="Day Total"
         />
       </View>
 
@@ -189,6 +195,29 @@ export const DayDetailScreen: React.FC = () => {
   );
 };
 
+const calculateDailyUsageRatio = (
+  date: string,
+  mobile: number,
+  hotspot: number
+): number | undefined => {
+  const capSetting = queries.getSetting('monthly_cap_bytes');
+  const capBytes = capSetting ? parseInt(capSetting, 10) : 0;
+  if (!capBytes || Number.isNaN(capBytes)) {
+    return undefined;
+  }
+
+  const cycleDaySetting = queries.getSetting('billing_cycle_start_day');
+  const cycleStartDay = cycleDaySetting ? parseInt(cycleDaySetting, 10) : 1;
+  const [year, month, day] = date.split('-').map((part) => parseInt(part, 10));
+  const viewedDate = new Date(year, month - 1, day);
+  const { start, end } = budgetService.getBillingCycleRange(cycleStartDay, viewedDate);
+  const oneDayMs = 24 * 60 * 60 * 1000;
+  const cycleDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / oneDayMs) + 1);
+  const dailyMobilePace = capBytes / cycleDays;
+
+  return dailyMobilePace > 0 ? (mobile + hotspot) / dailyMobilePace : undefined;
+};
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -205,15 +234,16 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '800',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   sectionCard: {
     borderRadius: 16,
     borderWidth: 1,
-    padding: 16,
+    padding: 18,
     marginBottom: 20,
+    overflow: 'hidden',
   },
   sortBar: {
     flexDirection: 'row',

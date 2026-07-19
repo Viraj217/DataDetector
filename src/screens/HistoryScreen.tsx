@@ -2,29 +2,31 @@ import React, { useState, useCallback } from 'react';
 import {
   ScrollView,
   View,
-  Text,
   StyleSheet,
   SafeAreaView,
   TouchableOpacity,
   RefreshControl,
 } from 'react-native';
+import { Text } from '../components/AppText';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { HistoryStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/ThemeContext';
 import { queries } from '../database/queries';
 import { dateUtils } from '../utils/dateUtils';
+import { syncService } from '../services/syncService';
 import { CalendarHeatmap } from '../components/CalendarHeatmap';
 import { StackedBarChart } from '../components/StackedBarChart';
 import { WeekComparisonChart } from '../components/WeekComparisonChart';
 import { PeakUsageChart } from '../components/PeakUsageChart';
 import { SkeletonLoader } from '../components/SkeletonLoader';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 
 type HistoryScreenNavigationProp = NativeStackNavigationProp<HistoryStackParamList, 'HistoryHome'>;
 
 export const HistoryScreen: React.FC = () => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const navigation = useNavigation<HistoryScreenNavigationProp>();
 
   // State
@@ -54,8 +56,8 @@ export const HistoryScreen: React.FC = () => {
       const stacked = queries.getDailyTotals(historyDays, todayStr);
       setStackedData(stacked);
 
-      // 2b. Fetch Hourly Heatmap data (last 7 days)
-      const hourlyHeatmap = queries.getHourlyHeatmap(7, todayStr);
+      // 2b. Fetch today's hourly data for the Peak Usage Hours chart
+      const hourlyHeatmap = queries.getHourlyBreakdown(todayStr);
       setHourlyHeatmapData(hourlyHeatmap);
 
       // 3. Fetch Week Comparison data
@@ -80,8 +82,12 @@ export const HistoryScreen: React.FC = () => {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await loadData(true);
-    setRefreshing(false);
+    try {
+      await syncService.sync();
+      await loadData(true);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   useFocusEffect(
@@ -91,6 +97,7 @@ export const HistoryScreen: React.FC = () => {
   );
 
   const handlePressDay = (date: string) => {
+    ReactNativeHapticFeedback.trigger('impactLight');
     navigation.navigate('DayDetail', { date });
   };
 
@@ -107,7 +114,7 @@ export const HistoryScreen: React.FC = () => {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: '#F8F9FB' }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -120,30 +127,9 @@ export const HistoryScreen: React.FC = () => {
           />
         }
       >
-        {/* Screen Header */}
-        <View style={styles.headerContainer}>
-          <View style={styles.headerTop}>
-            <View style={{flexDirection: 'row', alignItems: 'center'}}>
-               <Text style={styles.headerLogoIcon}>📊</Text>
-               <Text style={styles.headerLogoText}>DataDetector</Text>
-            </View>
-            <TouchableOpacity onPress={handleRefresh} style={styles.refreshBtn}>
-              <Text style={{fontSize: 18}}>🔄</Text>
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.pullRefreshWrapper}>
-            <Text style={{fontSize: 10, color: '#9CA3AF', letterSpacing: 1}}>{'↓'}</Text>
-            <Text style={{fontSize: 10, color: '#9CA3AF', letterSpacing: 1, fontWeight: '700', marginLeft: 4}}>PULL TO REFRESH</Text>
-          </View>
-
-          <Text style={[styles.screenTitle, { color: '#0F172A' }]}>Usage History</Text>
-          <Text style={[styles.screenSubtitle, { color: '#475569' }]}>Analyzing your data footprint across networks.</Text>
-        </View>
-
         {/* Heatmap Section */}
         <Animated.View 
-          style={styles.sectionCard}
+          style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
           entering={FadeInDown.delay(100).springify()}
         >
           <CalendarHeatmap
@@ -155,7 +141,7 @@ export const HistoryScreen: React.FC = () => {
 
         {/* Peak Usage Section */}
         <Animated.View
-          style={styles.sectionCard}
+          style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
           entering={FadeInDown.delay(150).springify()}
         >
           <PeakUsageChart data={hourlyHeatmapData} />
@@ -163,23 +149,26 @@ export const HistoryScreen: React.FC = () => {
 
         {/* Usage Trend Section */}
         <Animated.View 
-          style={styles.sectionCard}
+          style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
           entering={FadeInDown.delay(200).springify()}
         >
           <View style={styles.chartHeader}>
-            <Text style={[styles.cardTitle, { color: '#0F172A' }]}>Usage Trend</Text>
-            <View style={styles.toggleContainer}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>Usage Trend</Text>
+            <View style={[styles.toggleContainer, { backgroundColor: colors.surfaceContainer }]}>
               <TouchableOpacity
                 style={[
                   styles.toggleBtn,
-                  historyDays === 7 && { backgroundColor: '#EDE9FE' },
+                  historyDays === 7 && { backgroundColor: isDark ? 'rgba(99, 102, 241, 0.2)' : '#EDE9FE' },
                 ]}
-                onPress={() => setHistoryDays(7)}
+                onPress={() => {
+                  ReactNativeHapticFeedback.trigger('selection');
+                  setHistoryDays(7);
+                }}
               >
                 <Text
                   style={[
                     styles.toggleText,
-                    { color: historyDays === 7 ? '#6D28D9' : '#64748B' },
+                    { color: historyDays === 7 ? colors.accent : colors.textSecondary },
                   ]}
                 >
                   7 Days
@@ -188,14 +177,17 @@ export const HistoryScreen: React.FC = () => {
               <TouchableOpacity
                 style={[
                   styles.toggleBtn,
-                  historyDays === 30 && { backgroundColor: '#EDE9FE' },
+                  historyDays === 30 && { backgroundColor: isDark ? 'rgba(99, 102, 241, 0.2)' : '#EDE9FE' },
                 ]}
-                onPress={() => setHistoryDays(30)}
+                onPress={() => {
+                  ReactNativeHapticFeedback.trigger('selection');
+                  setHistoryDays(30);
+                }}
               >
                 <Text
                   style={[
                     styles.toggleText,
-                    { color: historyDays === 30 ? '#6D28D9' : '#64748B' },
+                    { color: historyDays === 30 ? colors.accent : colors.textSecondary },
                   ]}
                 >
                   30 Days
@@ -209,10 +201,10 @@ export const HistoryScreen: React.FC = () => {
 
         {/* Week Comparison Section */}
         <Animated.View 
-          style={styles.sectionCard}
+          style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
           entering={FadeInDown.delay(300).springify()}
         >
-          <Text style={[styles.cardTitle, { color: '#0F172A', marginBottom: 16 }]}>Week Comparison</Text>
+          <Text style={[styles.cardTitle, { color: colors.text, marginBottom: 16 }]}>Week Comparison</Text>
           <WeekComparisonChart
             thisWeek={weekComparison.thisWeek}
             lastWeek={weekComparison.lastWeek}
@@ -232,58 +224,19 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   scrollContent: {
-    padding: 16,
-    paddingBottom: 32,
+    padding: 20,
+    paddingBottom: 40,
   },
   sectionCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 20,
-    marginBottom: 24,
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 18,
+    marginBottom: 22,
     shadowColor: '#9CA3AF',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 2,
-  },
-  headerContainer: {
-    marginBottom: 24,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  headerLogoIcon: {
-    fontSize: 20,
-    marginRight: 6,
-  },
-  headerLogoText: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#2563EB',
-    letterSpacing: -0.5,
-  },
-  refreshBtn: {
-    padding: 4,
-  },
-  pullRefreshWrapper: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  screenTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    marginBottom: 8,
-  },
-  screenSubtitle: {
-    fontSize: 14,
-    fontWeight: '400',
-    lineHeight: 20,
-    paddingRight: 40,
   },
   cardTitle: {
     fontSize: 16,
@@ -293,7 +246,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 24,
+    marginBottom: 18,
   },
   toggleContainer: {
     flexDirection: 'row',
